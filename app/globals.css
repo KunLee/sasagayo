@@ -1,0 +1,175 @@
+/* --- Minimal reset ------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+ul {
+  padding-left: 1.25rem;
+}
+
+/* --- Design tokens ------------------------------------------------------ */
+
+:root {
+  --color-text: #16191d;
+  --color-muted: #5b6470;
+  --color-background: #ffffff;
+  --color-surface: #f5f6f8;
+  --color-border: #e2e5ea;
+  --color-accent: #1a56db;
+  --max-width: 44rem;
+  --space: 1rem;
+}
+
+/* --- Base typography ---------------------------------------------------- */
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  margin: 0;
+}
+
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+}
+
+p {
+  margin: 0;
+}
+
+code {
+  background-color: var(--color-surface);
+  border-radius: 4px;
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+}
+
+a {
+  color: var(--color-accent);
+}
+
+/* --- Layout utilities --------------------------------------------------- */
+
+.container {
+  margin: 0 auto;
+  max-width: var(--max-width);
+  padding: 0 var(--space);
+  width: 100%;
+}
+
+.stack > * + * {
+  margin-top: var(--space);
+}
+
+.site {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.site-main {
+  flex: 1;
+  padding-bottom: calc(var(--space) * 3);
+  padding-top: calc(var(--space) * 3);
+}
+
+/* --- Components --------------------------------------------------------- */
+
+.site-header {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.site-header .container {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space);
+  justify-content: space-between;
+  padding-bottom: var(--space);
+  padding-top: var(--space);
+}
+
+.site-header__brand {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.site-nav {
+  display: flex;
+  gap: var(--space);
+}
+
+.site-nav a {
+  text-decoration: none;
+}
+
+.site-nav a:hover,
+.site-nav a:focus {
+  text-decoration: underline;
+}
+
+.site-footer {
+  border-top: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.site-footer .container {
+  padding-bottom: var(--space);
+  padding-top: var(--space);
+}
+
+.lead {
+  color: var(--color-muted);
+  font-size: 1.125rem;
+}
+
+.logo {
+  height: 96px;
+  width: 96px;
+}
+
+.button {
+  background-color: var(--color-accent);
+  border-radius: 6px;
+  color: #ffffff;
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  text-decoration: none;
+}
+
+.button:hover,
+.button:focus {
+  filter: brightness(0.92);
+}
