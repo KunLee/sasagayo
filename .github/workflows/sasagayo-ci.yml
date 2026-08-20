@@ -1,0 +1,71 @@
+---
+# CI for sasagayo.
+#
+# This is the pipeline KuWarden reads back as its reality anchor (invariant 3). It is an
+# ordinary Next.js check that happens to be consumed by a delivery tool — nothing in here is
+# KuWarden-specific, and it must keep working for humans pushing branches by hand.
+#
+# Three constraints come from how KuWarden reads it. Each is load-bearing:
+#
+#   1. Triggered by `push`, on every branch. KuWarden pushes a `kuwarden/*` branch and grades
+#      that commit BEFORE opening a pull request (ADR 0007). A `pull_request`-only trigger
+#      produces no run at grading time, and KuWarden would correctly — and uselessly —
+#      conclude this repository has no pipeline.
+#
+#   2. In-progress runs are NOT cancelled. KuWarden's Coder retries by pushing further
+#      commits, and a run cancelled by a newer push reports `cancelled`, which KuWarden counts
+#      as a failure and not as a pass. That is deliberate on its side: a check somebody
+#      interrupted is not evidence that anything succeeded. Cancelling here would fail changes
+#      for a reason that has nothing to do with the code.
+#
+#   3. Read-only, and holds no secrets. Turning KuWarden's `ci:` section on means this
+#      pipeline runs agent-written code on a `kuwarden/*` branch before any human has read it.
+#      Anything this workflow can reach, a model that read a ticket can reach. Keep it that
+#      way: no deploy step, no publish step, no credentials, no `pull_request_target`.
+
+name: CI
+
+on:
+  push:
+
+# Nothing here writes to the repository, publishes anything, or needs a token beyond checkout.
+# This is the control that makes constraint 3 above real rather than a comment.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # See constraint 2. Do not set this to true.
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: lint and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # package.json declares engines.node >= 18.17.0; 20 is the current LTS and is what
+          # Next 14 is tested against.
+          node-version: '20'
+
+      # `npm install`, not `npm ci`: this repository has no committed package-lock.json, so
+      # there is no lockfile to install from and each run resolves fresh. Commit a lockfile
+      # and switch to `npm ci` — a pipeline that resolves different dependencies than the run
+      # before it is a weak reality anchor, because a red run may mean nothing changed in the
+      # code at all.
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint
+
+      # The real gate for this repository. `next build` compiles every route and component,
+      # so a broken import, invalid JSX, or a bad server/client boundary fails here. There is
+      # no `test` script in package.json — until there is, this is the check that actually
+      # distinguishes working agent output from plausible-looking agent output.
+      - name: Build
+        run: npm run build
