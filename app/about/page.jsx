@@ -1,9 +1,9 @@
 import Link from 'next/link';
+import { SITE_NAME } from '../../lib/site';
 
 export const metadata = {
   title: 'About',
-  description:
-    'What this scaffold contains and how to extend it with additional static pages.',
+  description: `What ${SITE_NAME} contains and how to extend it with additional static pages.`,
 };
 
 export default function AboutPage() {

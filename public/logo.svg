@@ -1,4 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Static Web App logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" role="img" aria-label="Sasagayo logo">
+  <title>Sasagayo logo</title>
   <rect width="96" height="96" rx="18" fill="#16191d" />
-  <path d="M30 69V27h9l21 30V27h6v42h-9L36 39v30z" fill="#ffffff" />
+  <!-- Treble clef, original artwork for this repository, CC0 1.0. -->
+  <path
+    d="M31 87C29 93 42 94 44 85C46 72 48 40 52 22C54 12 46 8 43 17C38 30 34 40 34 50C34 60 41 64 50 67C60 71 64 80 57 86C49 92 36 88 34 78C32 69 40 64 46 71"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="5.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
 </svg>

@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { SITE_NAME } from '../lib/site';
 
 export default function HomePage() {
   return (
@@ -7,18 +8,18 @@ export default function HomePage() {
       <Image
         className="logo"
         src="/logo.svg"
-        alt="Static Web App logo"
+        alt={`${SITE_NAME} logo`}
         width={96}
         height={96}
         priority
       />
 
-      <h1>Static Web App</h1>
+      <h1>{SITE_NAME}</h1>
 
       <p className="lead">
-        This is a minimal Next.js scaffold configured for static export. Every
-        route is pre-rendered to plain HTML at build time, so the site can be
-        served from any static host.
+        {SITE_NAME} is a minimal Next.js site configured for static export.
+        Every route is pre-rendered to plain HTML at build time, so the site can
+        be served from any static host.
       </p>
 
       <p>
