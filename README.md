@@ -1,9 +1,9 @@
-# Static Web App
+# Sasagayo
 
-A minimal static web application scaffold built with [Next.js](https://nextjs.org).
-The project is configured for **static export**: `next build` pre-renders every
-route to plain HTML so the site can be served by any static host (S3, GitHub
-Pages, Netlify, nginx, …) with no Node.js runtime.
+Sasagayo is a minimal static web application built with
+[Next.js](https://nextjs.org). The project is configured for **static export**:
+`next build` pre-renders every route to plain HTML so the site can be served by
+any static host (S3, GitHub Pages, Netlify, nginx, …) with no Node.js runtime.
 
 ## Prerequisites
 
@@ -40,6 +40,8 @@ out/
   index.html          -> /
   about/index.html    -> /about
   logo.svg
+  favicon.svg
+  site.webmanifest
   _next/...           (hashed JS/CSS assets)
 ```
 
@@ -85,12 +87,65 @@ app/
 components/
   Header.jsx        site navigation using next/link
   Footer.jsx        site footer
+lib/
+  site.js           canonical branding strings (name, title template, …)
 public/             static assets served from the site root (e.g. /logo.svg)
+  favicon.svg       vector icon referenced by the web app manifest
+  logo.svg          large version of the mark, used on the home page
+  site.webmanifest  web app manifest (name, short_name, icons, theme colour)
 next.config.mjs     static export configuration
 ```
 
 Assets in `public/` are referenced with root-relative paths (`/logo.svg`) so
 they keep working after the static export.
+
+## Branding
+
+All user-visible occurrences of the product name come from `lib/site.js`:
+
+| Constant              | Value                            | Used for                                     |
+| --------------------- | -------------------------------- | -------------------------------------------- |
+| `SITE_NAME`           | `Sasagayo`                       | header brand, footer, home heading, og/twitter |
+| `SITE_SHORT_NAME`     | `Sasagayo`                       | manifest short name / home-screen label       |
+| `SITE_TITLE_TEMPLATE` | `%s \| Sasagayo`                 | document title on non-root routes             |
+| `SITE_DESCRIPTION`    | see file                         | meta description, og/twitter description      |
+| `SITE_THEME_COLOR`    | `#16191d`                        | `theme-color`, manifest, icon artwork         |
+
+The root page renders the title `Sasagayo`; every other route renders
+`<Page> | Sasagayo`. Change the constants and every surface follows.
+
+The manifest (`public/site.webmanifest`) repeats `name`, `short_name` and
+`description` because a manifest is a static JSON document and cannot import
+from `lib/site.js` — keep it in sync when the constants change.
+
+Internal identifiers were intentionally **not** renamed, because nothing
+user-visible depends on them and changing them would churn imports, served
+paths or published metadata for no benefit:
+
+- the npm package identifier `static-web-app` in `package.json` (only the
+  human-readable `description` was updated). Renaming it can be a separate
+  follow-up;
+- the `site-*` CSS class prefixes in `app/globals.css`;
+- asset file names (`logo.svg`, `favicon.svg`, `icon.svg`).
+
+## Brand assets
+
+`app/icon.svg`, `public/favicon.svg` and `public/logo.svg` all draw the same
+mark: a pair of beamed quavers (eighth notes) in white on the dark brand
+square — a classical-music reference that stays readable at 16×16 and keeps
+enough contrast against both light and dark browser chrome.
+
+Provenance: the artwork is original to this repository. It is hand-written SVG
+(three `path` elements and two `ellipse` elements, no traced or imported
+third-party file), so there is no external license to honour; it is covered by
+this repository's own terms.
+
+The assets are vector only. Raster variants (`favicon.ico`,
+`apple-touch-icon.png`, 192×192/512×512 PWA icons) are not committed: modern
+browsers accept the SVG favicon and the manifest declares it with
+`"sizes": "any"`. If raster fallbacks are needed later, generate them from
+`public/favicon.svg` and add them next to it plus to the manifest `icons`
+array.
 
 ## Notes
 
@@ -100,3 +155,5 @@ they keep working after the static export.
   most static hosts expect.
 - Generated artefacts (`node_modules/`, `.next/`, `out/`) are git-ignored and
   must not be committed.
+- Browsers cache favicons aggressively; hard-refresh (or open a private window)
+  when checking the icon after a change.

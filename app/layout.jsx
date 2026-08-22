@@ -1,14 +1,39 @@
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_THEME_COLOR,
+  SITE_TITLE_TEMPLATE,
+} from '../lib/site';
 import './globals.css';
 
 export const metadata = {
+  applicationName: SITE_NAME,
   title: {
-    default: 'Static Web App',
-    template: '%s | Static Web App',
+    default: SITE_NAME,
+    template: SITE_TITLE_TEMPLATE,
   },
-  description:
-    'A minimal static web application scaffold built with Next.js and the App Router.',
+  description: SITE_DESCRIPTION,
+  manifest: '/site.webmanifest',
+  appleWebApp: {
+    title: SITE_NAME,
+  },
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: 'summary',
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
+};
+
+export const viewport = {
+  themeColor: SITE_THEME_COLOR,
 };
 
 export default function RootLayout({ children }) {
