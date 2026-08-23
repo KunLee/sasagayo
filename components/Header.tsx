@@ -5,7 +5,6 @@ import { useState } from "react";
 import { Bell, Compass, Menu, PenLine, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
 import SearchPalette from "@/components/SearchPalette";
-import ThemePicker from "@/components/ThemePicker";
 import AdminNavLink from "@/components/AdminNavLink";
 const navigation = [
   { label: "Discover", href: "/discover", match: "/discover" },
@@ -54,7 +53,6 @@ export default function Header() {
         </nav>
         <SearchPalette />
         <div className="flex items-center gap-2">
-          <ThemePicker />
           <AdminNavLink />
           <Link
             href="/activity"

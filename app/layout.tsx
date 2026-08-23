@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import PresenceTracker from "@/components/PresenceTracker";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+const DEFAULT_THEME = "ember";
 
 export const metadata = {
   title: { default: "Sasagayo — Music, remembered", template: "%s | Sasagayo" },
@@ -20,17 +21,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-theme="ember"
+      data-theme={DEFAULT_THEME}
       className={cn("font-sans", geist.variable)}
-      suppressHydrationWarning
     >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('sasagayo-theme');if(['ember','violet','ocean','midnight','paper'].includes(t))document.documentElement.dataset.theme=t}catch(e){}`,
-          }}
-        />
-      </head>
       <body>
         <div className="site">
           <PresenceTracker />
