@@ -1,9 +1,9 @@
 # Sasagayo
 
-Sasagayo is a minimal static web application built with
-[Next.js](https://nextjs.org). The project is configured for **static export**:
-`next build` pre-renders every route to plain HTML so the site can be served by
-any static host (S3, GitHub Pages, Netlify, nginx, …) with no Node.js runtime.
+Sasagayo is a music and story community built with
+[Next.js](https://nextjs.org). Pages are pre-rendered where possible, while
+authentication uses a same-origin Vercel Function so Supabase session tokens
+can remain in HTTP-only cookies.
 
 ## Prerequisites
 
@@ -32,27 +32,26 @@ checked immediately. Edits are hot-reloaded.
 npm run build
 ```
 
-Because `next.config.mjs` sets `output: 'export'`, the build writes the static
-site to the **`out/`** directory:
+The application now uses a standard Next.js production build because API
+routes require a server runtime. Preview it with `npm start`, or deploy the
+repository directly to Vercel.
 
-```
-out/
-  index.html          -> /
-  about/index.html    -> /about
-  logo.svg
-  favicon.svg
-  site.webmanifest
-  _next/...           (hashed JS/CSS assets)
-```
+Copy `.env.example` to `.env.local` and set the Supabase publishable key. Add
+the same `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` variables to Vercel for
+Preview and Production deployments.
 
-Preview it with any static file server pointed at `out/`, for example:
+`GET /api/auth` returns the current user. `POST /api/auth` accepts an `action`
+of `login`, `refresh`, or `logout`. The access and refresh tokens remain in
+secure, HTTP-only cookies and are not returned to browser JavaScript.
 
-```bash
-python3 -m http.server --directory out 3000
-```
+`POST /api/media` creates authenticated, ten-minute R2 upload and download
+URLs. It also completes and deletes uploads. Media metadata is protected by
+Supabase RLS in `public.media_assets`; owners manage their own records, while
+ready public records may be read by signed-in users.
 
-`npm start` (`next start`) is only useful if the static export is turned off; a
-static export is served from `out/` as shown above.
+The R2 bucket needs a CORS rule allowing `GET`, `HEAD`, and `PUT` from the web
+application. An R2 Admin Read & Write token can apply the checked-in rule with
+`npm run r2:configure-cors`.
 
 ## Linting
 
@@ -70,10 +69,9 @@ containing a `page.jsx`:
 | `/`      | `app/page.jsx`       |
 | `/about` | `app/about/page.jsx` |
 
-To add a page, create `app/<route>/page.jsx` and default-export a React
-component; the build emits `out/<route>/index.html` for it automatically.
-Export a `metadata` object from the file to set that page's title and
-description.
+To add a page, create `app/<route>/page.tsx` and default-export a React
+component. Export a `metadata` object from the file to set that page's title
+and description.
 
 ## Project layout
 
