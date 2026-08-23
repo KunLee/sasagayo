@@ -1,0 +1,18 @@
+{
+  "name": "Sasagayo",
+  "short_name": "Sasagayo",
+  "description": "Sasagayo is a minimal static web application built with Next.js and the App Router.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16191d",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ]
+}
