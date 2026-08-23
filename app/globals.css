@@ -232,7 +232,13 @@ select:focus-visible {
   border-radius: 999px;
   background: #fff;
   box-shadow: 0 2px 10px rgba(37, 29, 33, 0.08);
-  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  /* Slide smoothly between tabs, and fade in/out smoothly too, rather than
+     the opacity snapping instantly while the position is still animating —
+     that mismatch is what made the pill look like it was popping into place
+     on the wrong tab before sliding over. */
+  transition:
+    transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease;
 }
 .nav-slider__item {
   position: relative;

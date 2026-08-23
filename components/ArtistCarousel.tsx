@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import useEmblaCarousel from "embla-carousel-react";
 import { ArrowLeft, ArrowRight, Play } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -54,6 +55,7 @@ const artists = [
 ];
 
 export default function ArtistCarousel() {
+  const pathname = usePathname();
   const [viewportRef, api] = useEmblaCarousel({ loop: true, align: "start" });
   const [selected, setSelected] = useState(0);
   const updateSelected = useCallback(
@@ -70,6 +72,29 @@ export default function ArtistCarousel() {
       api.off("reInit", updateSelected);
     };
   }, [api, updateSelected]);
+
+  // Embla measures slide widths from the DOM once, when it is set up. If the
+  // page holding this carousel is restored from the browser's back/forward
+  // cache (for example after using the browser's back button to return here
+  // from Stories or Circles) those measurements are never recomputed, so the
+  // carousel can come back looking collapsed or empty instead of reappearing
+  // correctly. Re-running Embla's own re-measure whenever this route becomes
+  // active again — not just on the very first mount — keeps the layout
+  // correct.
+  useEffect(() => {
+    api?.reInit();
+  }, [api, pathname]);
+
+  useEffect(() => {
+    if (!api) return;
+    const reInit = () => api.reInit();
+    window.addEventListener("pageshow", reInit);
+    document.addEventListener("visibilitychange", reInit);
+    return () => {
+      window.removeEventListener("pageshow", reInit);
+      document.removeEventListener("visibilitychange", reInit);
+    };
+  }, [api]);
 
   return (
     <section

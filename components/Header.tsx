@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, Compass, Menu, PenLine, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
 import SearchPalette from "@/components/SearchPalette";
@@ -15,7 +15,19 @@ export default function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const found = navigation.findIndex((item) => pathname.startsWith(item.match));
-  const activeIndex = Math.max(0, found);
+  // Seed the indicator's position from `found` right in the lazy initializer
+  // (rather than defaulting to 0 and correcting it later in an effect) so the
+  // very first render already lands in the right slot. Once mounted, only
+  // move the indicator when the route actually matches one of the three
+  // tabs — never snap it back to "Discover" just because the current page
+  // isn't one of the tracked tabs. Without this, the pill could be parked at
+  // slot 0 while hidden, then pop into view mid-slide the first time a
+  // visitor moved from an untracked page onto a tab, reading as a layout
+  // glitch on load.
+  const [activeIndex, setActiveIndex] = useState(() => Math.max(found, 0));
+  useEffect(() => {
+    if (found >= 0) setActiveIndex(found);
+  }, [found]);
   return (
     <header className="sticky top-0 z-50 border-b border-stone-900/8 bg-[#f7f4ee]/90 backdrop-blur-xl">
       <div className="mx-auto flex h-18 max-w-[1400px] items-center gap-6 px-5 sm:px-8">
