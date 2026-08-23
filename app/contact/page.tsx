@@ -27,8 +27,8 @@ export default function ContactPage() {
         <div className="rounded-3xl border border-stone-900/8 bg-white/55 p-6">
           <Mail className="size-5 text-[#a74735]" />
           <p className="mt-10 font-serif text-xl">Email</p>
-          <a href="mailto:hello@sasagayo.example" className="mt-2 block text-sm text-stone-500 hover:text-stone-900">
-            hello@sasagayo.example
+          <a href="mailto:kun.li@ibm.com" className="mt-2 block text-sm text-stone-500 hover:text-stone-900">
+            kun.li@ibm.com
           </a>
         </div>
         <div className="rounded-3xl border border-stone-900/8 bg-white/55 p-6">
