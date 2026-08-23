@@ -18,6 +18,7 @@ export default function AccountClient() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth", { cache: "no-store" })
@@ -26,6 +27,13 @@ export default function AccountClient() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/admin", { cache: "no-store" })
+      .then((response) => setIsAdmin(response.ok))
+      .catch(() => setIsAdmin(false));
+  }, [user]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,6 +69,7 @@ export default function AccountClient() {
       body: JSON.stringify({ action: "logout" }),
     });
     setUser(null);
+    setIsAdmin(false);
     setSubmitting(false);
   }
 
@@ -137,6 +146,14 @@ export default function AccountClient() {
                 >
                   View reputation
                 </Link>
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className="inline-flex h-11 items-center rounded-full border border-[var(--theme-accent)] px-5 text-xs font-semibold text-[var(--theme-accent)]"
+                  >
+                    Administration
+                  </Link>
+                )}
                 <button
                   onClick={logout}
                   disabled={submitting}
