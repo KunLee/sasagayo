@@ -82,6 +82,21 @@ async function fetchUser(accessToken: string) {
   });
 }
 
+async function recordLogin(accessToken: string) {
+  const { url, publishableKey } = getSupabaseConfig();
+  const response = await fetch(`${url}/rest/v1/rpc/record_login`, {
+    method: "POST",
+    headers: {
+      apikey: publishableKey,
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+    cache: "no-store",
+  });
+  if (!response.ok) console.error("Could not record login activity");
+}
+
 export async function GET(request: NextRequest) {
   try {
     let accessToken = request.cookies.get(ACCESS_COOKIE)?.value;
@@ -120,7 +135,10 @@ export async function POST(request: NextRequest) {
   try {
     const origin = request.headers.get("origin");
     if (origin && origin !== request.nextUrl.origin) {
-      return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+      return NextResponse.json(
+        { error: "Invalid request origin." },
+        { status: 403 },
+      );
     }
 
     const body = (await request.json()) as {
@@ -132,7 +150,10 @@ export async function POST(request: NextRequest) {
     if (body.action === "signup") {
       if (!body.email || !body.password || body.password.length < 8) {
         return NextResponse.json(
-          { error: "A valid email and password of at least 8 characters are required." },
+          {
+            error:
+              "A valid email and password of at least 8 characters are required.",
+          },
           { status: 400 },
         );
       }
@@ -146,7 +167,10 @@ export async function POST(request: NextRequest) {
       const payload = await signUpResponse.json();
       if (!signUpResponse.ok) {
         return NextResponse.json(
-          { error: payload.msg ?? payload.error_description ?? "Sign-up failed." },
+          {
+            error:
+              payload.msg ?? payload.error_description ?? "Sign-up failed.",
+          },
           { status: signUpResponse.status },
         );
       }
@@ -156,6 +180,7 @@ export async function POST(request: NextRequest) {
       });
       if (payload.access_token && payload.refresh_token) {
         setSessionCookies(response, payload as SupabaseSession);
+        await recordLogin(payload.access_token);
       }
       return response;
     }
@@ -174,13 +199,16 @@ export async function POST(request: NextRequest) {
       const payload = await tokenResponse.json();
       if (!tokenResponse.ok) {
         return NextResponse.json(
-          { error: payload.error_description ?? payload.msg ?? "Login failed." },
+          {
+            error: payload.error_description ?? payload.msg ?? "Login failed.",
+          },
           { status: tokenResponse.status },
         );
       }
       const session = payload as SupabaseSession;
       const response = NextResponse.json({ user: session.user });
       setSessionCookies(response, session);
+      await recordLogin(session.access_token);
       return response;
     }
 

@@ -37,16 +37,18 @@ function json(
 }
 
 function safeFileName(fileName: string) {
-  return fileName
-    .normalize("NFKD")
-    .replace(/[^a-zA-Z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 120) || "media";
+  return (
+    fileName
+      .normalize("NFKD")
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 120) || "media"
+  );
 }
 
 async function dataApi(
   path: string,
-  accessToken: string,
+  accessToken?: string,
   init: RequestInit = {},
 ) {
   const { url, publishableKey } = getSupabaseConfig();
@@ -54,7 +56,7 @@ async function dataApi(
     ...init,
     headers: {
       apikey: publishableKey,
-      Authorization: `Bearer ${accessToken}`,
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       "Content-Type": "application/json",
       ...init.headers,
     },
@@ -106,7 +108,10 @@ export async function POST(request: NextRequest) {
         }),
       });
       if (!insertResponse.ok) {
-        console.error("Could not create media metadata", await insertResponse.text());
+        console.error(
+          "Could not create media metadata",
+          await insertResponse.text(),
+        );
         return json({ error: "Could not create media record." }, 502);
       }
 
@@ -140,7 +145,12 @@ export async function POST(request: NextRequest) {
     );
     const assets = assetResponse.ok ? await assetResponse.json() : [];
     const asset = assets[0] as
-      | { owner_id: string; object_key: string; mime_type: string; file_name: string }
+      | {
+          owner_id: string;
+          object_key: string;
+          mime_type: string;
+          file_name: string;
+        }
       | undefined;
     if (!asset) return json({ error: "Media asset not found." }, 404);
 
@@ -152,20 +162,30 @@ export async function POST(request: NextRequest) {
         new HeadObjectCommand({ Bucket: bucket, Key: asset.object_key }),
       );
       if (!object.ContentLength || object.ContentLength > MAX_FILE_SIZE) {
-        await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: asset.object_key }));
-        await dataApi(`media_assets?id=eq.${encodeURIComponent(body.assetId)}`, auth.accessToken, {
-          method: "DELETE",
-        });
+        await client.send(
+          new DeleteObjectCommand({ Bucket: bucket, Key: asset.object_key }),
+        );
+        await dataApi(
+          `media_assets?id=eq.${encodeURIComponent(body.assetId)}`,
+          auth.accessToken,
+          {
+            method: "DELETE",
+          },
+        );
         return json({ error: "The uploaded file has an invalid size." }, 400);
       }
-      await dataApi(`media_assets?id=eq.${encodeURIComponent(body.assetId)}`, auth.accessToken, {
-        method: "PATCH",
-        body: JSON.stringify({
-          status: "ready",
-          uploaded_at: new Date().toISOString(),
-          size_bytes: object.ContentLength,
-        }),
-      });
+      await dataApi(
+        `media_assets?id=eq.${encodeURIComponent(body.assetId)}`,
+        auth.accessToken,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            status: "ready",
+            uploaded_at: new Date().toISOString(),
+            size_bytes: object.ContentLength,
+          }),
+        },
+      );
       return json({ success: true }, 200, auth.refreshedSession);
     }
 
@@ -191,13 +211,16 @@ export async function POST(request: NextRequest) {
       if (asset.owner_id !== auth.user.id) {
         return json({ error: "Only the owner can delete this media." }, 403);
       }
-      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: asset.object_key }));
+      await client.send(
+        new DeleteObjectCommand({ Bucket: bucket, Key: asset.object_key }),
+      );
       const deleteResponse = await dataApi(
         `media_assets?id=eq.${encodeURIComponent(body.assetId)}`,
         auth.accessToken,
         { method: "DELETE" },
       );
-      if (!deleteResponse.ok) return json({ error: "Could not delete media record." }, 502);
+      if (!deleteResponse.ok)
+        return json({ error: "Could not delete media record." }, 502);
       return json({ success: true }, 200, auth.refreshedSession);
     }
 
@@ -210,6 +233,15 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const publicAssetId = request.nextUrl.searchParams.get("assetId");
+    if (publicAssetId) {
+      const assetResponse = await dataApi(`media_assets?id=eq.${encodeURIComponent(publicAssetId)}&visibility=eq.public&status=eq.ready&select=object_key,mime_type,file_name&limit=1`);
+      const asset = assetResponse.ok ? (await assetResponse.json())[0] : null;
+      if (!asset) return json({ error: "Public media not found." }, 404);
+      const { client, bucket } = getR2Config();
+      const streamUrl = await getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: asset.object_key, ResponseContentType: asset.mime_type, ResponseContentDisposition: `inline; filename="${safeFileName(asset.file_name)}"` }), { expiresIn: URL_LIFETIME_SECONDS });
+      return json({ streamUrl, mimeType: asset.mime_type, fileName: asset.file_name, expiresIn: URL_LIFETIME_SECONDS }, 200);
+    }
     const auth = await authenticateRequest(request);
     if (!auth) return json({ error: "Authentication required." }, 401);
     const response = await dataApi(
@@ -218,7 +250,11 @@ export async function GET(request: NextRequest) {
     );
     if (!response.ok) {
       console.error("Could not list media", await response.text());
-      return json({ error: "Could not load media." }, 502, auth.refreshedSession);
+      return json(
+        { error: "Could not load media." },
+        502,
+        auth.refreshedSession,
+      );
     }
     return json({ assets: await response.json() }, 200, auth.refreshedSession);
   } catch (error) {
