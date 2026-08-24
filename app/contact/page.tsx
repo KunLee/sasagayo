@@ -45,15 +45,27 @@ export default function ContactPage() {
           >
             kun.leeing@gmail.com
           </a>
+          <a
+            href="mailto:kun.li1@ibm.com"
+            className="mt-2 block text-sm text-stone-500 hover:text-stone-900"
+          >
+            kun.li1@ibm.com
+          </a>
+          <a
+            href="mailto:kun.li2@ibm.com"
+            className="mt-2 block text-sm text-stone-500 hover:text-stone-900"
+          >
+            kun.li2@ibm.com
+          </a>
         </div>
         <div className="rounded-3xl border border-stone-900/8 bg-white/55 p-6">
           <Phone className="size-5 text-[#a74735]" />
           <p className="mt-10 font-serif text-xl">Phone</p>
           <a
-            href="tel:+81334567890"
+            href="tel:045185616"
             className="mt-2 block text-sm text-stone-500 hover:text-stone-900"
           >
-            +81 3-3456-7890
+            045185616
           </a>
         </div>
         <div className="rounded-3xl border border-stone-900/8 bg-white/55 p-6">
