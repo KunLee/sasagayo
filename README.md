@@ -107,7 +107,7 @@ All user-visible occurrences of the product name come from `lib/site.js`:
 | `SITE_SHORT_NAME`     | `Sasagayo`                       | manifest short name / home-screen label       |
 | `SITE_TITLE_TEMPLATE` | `%s \| Sasagayo`                 | document title on non-root routes             |
 | `SITE_DESCRIPTION`    | see file                         | meta description, og/twitter description      |
-| `SITE_THEME_COLOR`    | `#28768e` (Ocean theme accent)    | `theme-color`, manifest, icon artwork         |
+| `SITE_THEME_COLOR`    | `#a74735` (Ember theme accent)    | `theme-color`, manifest, icon artwork         |
 
 The root page renders the title `Sasagayo`; every other route renders
 `<Page> | Sasagayo`. Change the constants and every surface follows.
@@ -131,18 +131,18 @@ paths or published metadata for no benefit:
 The site ships several full-site "atmosphere" themes as CSS custom-property
 sets in `app/globals.css` (`--theme-*` tokens), selected via the
 `data-theme` attribute on `<html>` (set in `app/layout.tsx`). The active
-default theme is **Ocean** (`data-theme="ocean"`): a blue palette (backgrounds,
-surfaces, ink, inverted/dark surfaces, and an accent with hover/active/focus
-states) chosen to meet WCAG AA contrast for body text and interactive
-elements against both light and dark surfaces. Other themes (`ember`,
-`violet`, `midnight`, `paper`) remain available for future use by changing
-`DEFAULT_THEME` in `app/layout.tsx`.
+default theme is **Ember** (`data-theme="ember"`): the original warm palette
+(backgrounds, surfaces, ink, inverted/dark surfaces, and an accent with
+hover/active/focus states) chosen to meet WCAG AA contrast for body text and
+interactive elements against both light and dark surfaces. Other themes
+(`ocean`, `violet`, `midnight`, `paper`) remain available for future use by
+changing `DEFAULT_THEME` in `app/layout.tsx`.
 
 ## Brand assets
 
 `app/icon.svg`, `public/favicon.svg` and `public/logo.svg` all draw the same
 mark: a pair of beamed quavers (eighth notes) in white on a dark brand
-square (now tinted to match the Ocean theme's dark surface) — a
+square (tinted to match the Ember theme's dark surface) — a
 classical-music reference that stays readable at 16×16 and keeps enough
 contrast against both light and dark browser chrome.
 
