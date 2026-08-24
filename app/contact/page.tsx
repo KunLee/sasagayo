@@ -39,6 +39,12 @@ export default function ContactPage() {
           >
             kun.li@ibm.com
           </a>
+          <a
+            href="mailto:kun.leeing@gmail.com"
+            className="mt-2 block text-sm text-stone-500 hover:text-stone-900"
+          >
+            kun.leeing@gmail.com
+          </a>
         </div>
         <div className="rounded-3xl border border-stone-900/8 bg-white/55 p-6">
           <Phone className="size-5 text-[#a74735]" />
