@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, Compass, Menu, PenLine, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
 import SearchPalette from "@/components/SearchPalette";
@@ -14,26 +14,20 @@ const navigation = [
 export default function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const indicatorRef = useRef<HTMLSpanElement>(null);
+  // Tracks whether the nav-slider indicator has completed its first paint.
+  // On the very first render the indicator must snap straight to the active
+  // tab's position with no transition; animating in from its default (first
+  // tab) position on initial page load is what produced the rendering
+  // glitch in the 3-button group. This is plain React state set from an
+  // effect after mount — not a ref read during render, which the lint rule
+  // react-hooks/refs (and React itself) disallow.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const found = navigation.findIndex((item) => pathname.startsWith(item.match));
   const activeIndex = Math.max(0, found);
-
-  // On the very first paint, the indicator must land directly on the active
-  // tab instead of visibly sliding in from its default position — that slide
-  // was the initial-load rendering glitch in the 3-button group. Rendering
-  // with `transitionDuration: "0s"` up front makes the correct position
-  // apply synchronously on first mount. The effect below only mutates the
-  // DOM node directly (no React state) to re-enable the smooth transition
-  // for subsequent tab switches, so it does not trigger cascading renders.
-  useEffect(() => {
-    const node = indicatorRef.current;
-    if (!node) return;
-    const frame = window.requestAnimationFrame(() => {
-      node.style.transitionDuration = "";
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
-
   return (
     <header className="sticky top-0 z-50 border-b border-stone-900/8 bg-[#f7f4ee]/90 backdrop-blur-xl">
       <div className="mx-auto flex h-18 max-w-[1400px] items-center gap-6 px-5 sm:px-8">
@@ -51,12 +45,11 @@ export default function Header() {
         </Link>
         <nav className="nav-slider hidden lg:grid" aria-label="Main navigation">
           <span
-            ref={indicatorRef}
             className="nav-slider__indicator"
             style={{
               transform: `translateX(${activeIndex * 100}%)`,
               opacity: found < 0 ? 0 : 1,
-              transitionDuration: "0s",
+              transition: settled ? undefined : "none",
             }}
             aria-hidden="true"
           />
