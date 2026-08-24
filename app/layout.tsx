@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils";
 import PresenceTracker from "@/components/PresenceTracker";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
-// Active site theme. See app/globals.css for the full 'Ocean' token set
+// Active site theme. See app/globals.css for the full 'Ember' (Amber) token set
 // (backgrounds, ink, invert surfaces, accent + hover/focus states).
-const DEFAULT_THEME = "ocean";
+const DEFAULT_THEME = "ember";
 
 export const metadata = {
   title: { default: "Sasagayo — Music, remembered", template: "%s | Sasagayo" },
