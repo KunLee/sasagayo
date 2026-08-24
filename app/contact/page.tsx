@@ -34,38 +34,20 @@ export default function ContactPage() {
           <Mail className="size-5 text-[#a74735]" />
           <p className="mt-10 font-serif text-xl">Email</p>
           <a
-            href="mailto:kun.li@ibm.com"
+            href="mailto:Kun.li@ibm.com"
             className="mt-2 block text-sm text-stone-500 hover:text-stone-900"
           >
-            kun.li@ibm.com
-          </a>
-          <a
-            href="mailto:kun.leeing@gmail.com"
-            className="mt-2 block text-sm text-stone-500 hover:text-stone-900"
-          >
-            kun.leeing@gmail.com
-          </a>
-          <a
-            href="mailto:kun.li1@ibm.com"
-            className="mt-2 block text-sm text-stone-500 hover:text-stone-900"
-          >
-            kun.li1@ibm.com
-          </a>
-          <a
-            href="mailto:kun.li2@ibm.com"
-            className="mt-2 block text-sm text-stone-500 hover:text-stone-900"
-          >
-            kun.li2@ibm.com
+            Kun.li@ibm.com
           </a>
         </div>
         <div className="rounded-3xl border border-stone-900/8 bg-white/55 p-6">
           <Phone className="size-5 text-[#a74735]" />
           <p className="mt-10 font-serif text-xl">Phone</p>
           <a
-            href="tel:045185616"
+            href="tel:+610451856126"
             className="mt-2 block text-sm text-stone-500 hover:text-stone-900"
           >
-            045185616
+            +61 0451856126
           </a>
         </div>
         <div className="rounded-3xl border border-stone-900/8 bg-white/55 p-6">
