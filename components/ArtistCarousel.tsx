@@ -71,6 +71,21 @@ export default function ArtistCarousel() {
     };
   }, [api, updateSelected]);
 
+  // Embla measures its viewport synchronously at initialization. If this
+  // component mounts while the surrounding layout hasn't finished settling
+  // (for example immediately after navigating back to a route that renders
+  // it), the initial measurement can be stale and the carousel then appears
+  // to have vanished — no slides, no controls reacting. Re-running Embla's
+  // own reInit once after mount (and again after the next paint) forces it
+  // to remeasure against the real, settled layout and reliably show the
+  // slides again every time this component is mounted.
+  useEffect(() => {
+    if (!api) return;
+    api.reInit();
+    const frame = requestAnimationFrame(() => api.reInit());
+    return () => cancelAnimationFrame(frame);
+  }, [api]);
+
   return (
     <section
       aria-labelledby="artist-series-title"
