@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import useEmblaCarousel from "embla-carousel-react";
 import { ArrowLeft, ArrowRight, Play } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -56,6 +57,7 @@ const artists = [
 export default function ArtistCarousel() {
   const [viewportRef, api] = useEmblaCarousel({ loop: true, align: "start" });
   const [selected, setSelected] = useState(0);
+  const pathname = usePathname();
   const updateSelected = useCallback(
     () => api && setSelected(api.selectedScrollSnap()),
     [api],
@@ -70,6 +72,32 @@ export default function ArtistCarousel() {
       api.off("reInit", updateSelected);
     };
   }, [api, updateSelected]);
+
+  // Embla measures slide widths from the DOM at initialization time. When
+  // this carousel's page is revisited via client-side navigation (e.g.
+  // Discover -> Stories -> Discover), the framework can keep a previous
+  // render of this tree around and simply re-show it rather than mounting a
+  // fresh instance. If that happens while the container had a stale or
+  // zero size, Embla never learns about the corrected dimensions and the
+  // carousel appears to have vanished or frozen. Explicitly reinitializing
+  // whenever the route changes — and whenever the carousel's own node is
+  // resized — makes the carousel resilient to both a genuine remount and a
+  // cached/soft navigation, without adding any visible flicker since
+  // `reInit()` is cheap and a no-op when nothing actually changed.
+  useEffect(() => {
+    api?.reInit();
+  }, [api, pathname]);
+
+  useEffect(() => {
+    if (!api) return;
+    const node = api.rootNode();
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      api.reInit();
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [api]);
 
   return (
     <section
