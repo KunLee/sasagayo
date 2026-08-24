@@ -131,25 +131,24 @@ paths or published metadata for no benefit:
 The site ships several full-site "atmosphere" themes as CSS custom-property
 sets in `app/globals.css` (`--theme-*` tokens), selected via the
 `data-theme` attribute on `<html>` (set in `app/layout.tsx`). The active
-default theme is **Ocean** (`data-theme="ocean"`): a blue palette
-(backgrounds, surfaces, ink, inverted/dark surfaces, and an accent with
-hover/active/focus states) chosen to meet WCAG AA contrast for body text and
-interactive elements against both light and dark surfaces. Hard-coded
-utility-class colours throughout the components (e.g. `text-[#a74735]`,
-`bg-[#2b2025]`) are re-mapped generically onto these `--theme-*` tokens via
-attribute selectors in `app/globals.css`, so switching `DEFAULT_THEME`
-recolours the whole site consistently without per-component edits. Other
-themes (`ember`, `violet`, `midnight`, `paper`) remain available for future
-use by changing `DEFAULT_THEME` in `app/layout.tsx`; `ember` is the original
-warm palette this site shipped with.
+default theme is **Ember** (`data-theme="ember"`): the original warm palette
+this site shipped with (backgrounds, surfaces, ink, inverted/dark surfaces,
+and an accent with hover/active/focus states). Hard-coded utility-class
+colours throughout the components (e.g. `text-[#a74735]`, `bg-[#2b2025]`) are
+re-mapped generically onto these `--theme-*` tokens via attribute selectors
+in `app/globals.css`, so switching `DEFAULT_THEME` recolours the whole site
+consistently without per-component edits. Other themes (`ocean`, `violet`,
+`midnight`, `paper`) remain available for future use by changing
+`DEFAULT_THEME` in `app/layout.tsx`; `ocean` is a blue palette chosen to meet
+WCAG AA contrast for body text and interactive elements against both light
+and dark surfaces.
 
 ## Brand assets
 
 `app/icon.svg`, `public/favicon.svg` and `public/logo.svg` all draw the same
 mark: a pair of beamed quavers (eighth notes) in white on a dark brand
-square (tinted to match the Ocean theme's dark surface) — a
-classical-music reference that stays readable at 16×16 and keeps enough
-contrast against both light and dark browser chrome.
+square, a classical-music reference that stays readable at 16×16 and keeps
+enough contrast against both light and dark browser chrome.
 
 Provenance: the artwork is original to this repository. It is hand-written SVG
 (three `path` elements and two `ellipse` elements, no traced or imported
