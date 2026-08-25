@@ -50,34 +50,36 @@ export default function ListeningCompass() {
   }, [answers, complete]);
 
   return (
-    <section className="border-y border-stone-900/8 bg-[var(--theme-invert)] text-[var(--theme-invert-text)]">
-      <div className="mx-auto grid max-w-[1300px] gap-10 px-6 py-16 sm:px-8 lg:grid-cols-[.72fr_1.28fr] lg:py-24">
+    <section className="bg-[var(--theme-bg)] px-4 py-14 text-[var(--theme-ink)] sm:px-6 lg:py-20">
+      <div className="relative mx-auto grid max-w-[1250px] gap-10 overflow-hidden rounded-[38px] border border-stone-900/8 bg-[var(--theme-accent-pale)] px-6 py-10 shadow-[0_24px_80px_rgba(52,34,31,.08)] sm:px-10 lg:grid-cols-[.68fr_1.32fr] lg:px-14 lg:py-14">
+        <div className="pointer-events-none absolute -left-16 -top-20 size-56 rounded-full border-[34px] border-white/25" aria-hidden="true" />
+        <div className="pointer-events-none absolute -bottom-24 left-[28%] size-48 rounded-full bg-white/20 blur-2xl" aria-hidden="true" />
         <div className="max-w-md">
-          <p className="micro-label text-[var(--theme-accent-soft)]">
+          <p className="micro-label text-[var(--theme-accent)]">
             <Compass className="mr-2 inline size-3" /> Listening compass
           </p>
-          <h2 className="mt-5 font-serif text-5xl leading-[.95] tracking-[-.035em] sm:text-6xl">
+          <h2 className="mt-5 font-serif text-5xl leading-[.95] tracking-[-.035em]">
             Begin with how you are,
-            <em className="block font-normal text-[var(--theme-accent-soft)]">
+            <em className="block font-normal text-[var(--theme-accent)]">
               not what is trending.
             </em>
           </h2>
-          <p className="mt-6 text-sm leading-7 text-[color:color-mix(in_srgb,var(--theme-invert-text)_62%,transparent)]">
+          <p className="mt-6 text-sm leading-7 text-[color:color-mix(in_srgb,var(--theme-ink)_64%,transparent)]">
             Three small choices create a listening path through a song, a
             human story, and a room where the feeling can continue.
           </p>
-          <div className="mt-8 flex items-center gap-2 text-[10px] uppercase tracking-[.16em] text-[color:color-mix(in_srgb,var(--theme-invert-text)_55%,transparent)]">
+          <div className="mt-8 flex items-center gap-2 border-t border-stone-900/10 pt-5 text-[10px] uppercase tracking-[.16em] text-[color:color-mix(in_srgb,var(--theme-ink)_52%,transparent)]">
             <Sparkles className="size-3" /> No profile · no taste score · just
             this moment
           </div>
         </div>
 
-        <div className="rounded-[32px] border border-white/10 bg-white/[.055] p-5 shadow-2xl shadow-black/10 sm:p-7">
+        <div className="relative rounded-[30px] border border-stone-900/8 bg-[color:color-mix(in_srgb,var(--theme-surface)_82%,transparent)] p-5 shadow-xl shadow-stone-900/5 backdrop-blur-sm sm:p-7">
           <div className="space-y-6">
             {questions.map((question, questionIndex) => (
               <fieldset key={question.id}>
                 <legend className="mb-3 flex items-center gap-3 text-xs font-semibold">
-                  <span className="grid size-6 place-items-center rounded-full border border-white/15 text-[9px] text-[color:color-mix(in_srgb,var(--theme-invert-text)_55%,transparent)]">
+                  <span className="grid size-6 place-items-center rounded-full border border-stone-900/12 bg-white/45 text-[9px] text-stone-500">
                     0{questionIndex + 1}
                   </span>
                   {question.label}
@@ -96,10 +98,10 @@ export default function ListeningCompass() {
                             [question.id]: optionIndex,
                           }))
                         }
-                        className={`min-h-12 rounded-2xl border px-4 py-3 text-left text-xs transition duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--theme-accent-soft)] ${
+                        className={`min-h-12 rounded-2xl border px-4 py-3 text-left text-xs transition duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--theme-accent)] ${
                           selected
-                            ? "border-[var(--theme-accent-soft)] bg-[var(--theme-accent-soft)] text-[var(--theme-invert)]"
-                            : "border-white/10 bg-white/[.035] text-[color:color-mix(in_srgb,var(--theme-invert-text)_62%,transparent)] hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[.075] hover:text-white"
+                            ? "border-[var(--theme-accent)] bg-[var(--theme-accent)] text-white shadow-md shadow-stone-900/10"
+                            : "border-stone-900/9 bg-white/55 text-stone-600 hover:-translate-y-0.5 hover:border-[var(--theme-accent)]/35 hover:bg-white hover:text-stone-900"
                         }`}
                       >
                         {option}
@@ -178,8 +180,8 @@ export default function ListeningCompass() {
                 </div>
               </div>
             ) : (
-              <div className="grid min-h-44 place-items-center rounded-[24px] border border-dashed border-white/12 px-6 text-center">
-                <p className="max-w-sm text-xs leading-6 text-[color:color-mix(in_srgb,var(--theme-invert-text)_55%,transparent)]">
+              <div className="grid min-h-44 place-items-center rounded-[24px] border border-dashed border-stone-900/15 bg-white/25 px-6 text-center">
+                <p className="max-w-sm text-xs leading-6 text-stone-500">
                   Choose one answer from each line. Your path appears here and
                   disappears when you leave—this moment stays yours.
                 </p>

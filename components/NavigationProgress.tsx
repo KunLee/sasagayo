@@ -29,17 +29,37 @@ export default function NavigationProgress() {
   const pathname = usePathname();
   const [active, setActive] = useState(false);
   const [destination, setDestination] = useState("");
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [slow, setSlow] = useState(false);
   const currentPath = useRef(pathname);
+  const navigationStartedAt = useRef<number | null>(null);
   useEffect(() => {
     currentPath.current = pathname;
-    const timer = window.setTimeout(() => setActive(false), 0);
+    const timer = window.setTimeout(() => {
+      if (navigationStartedAt.current != null) {
+        const duration = performance.now() - navigationStartedAt.current;
+        performance.measure("sasagayo-route-navigation", {
+          start: navigationStartedAt.current,
+          duration,
+          detail: { pathname },
+        });
+        navigationStartedAt.current = null;
+      }
+      setActive(false);
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [pathname]);
   useEffect(() => {
     if (!active) return;
-    const timer = window.setTimeout(() => setSlow(true), 4_000);
-    return () => window.clearTimeout(timer);
+    const revealTimer = window.setTimeout(() => setOverlayVisible(true), 160);
+    const expandTimer = window.setTimeout(() => setExpanded(true), 650);
+    const slowTimer = window.setTimeout(() => setSlow(true), 4_000);
+    return () => {
+      window.clearTimeout(revealTimer);
+      window.clearTimeout(expandTimer);
+      window.clearTimeout(slowTimer);
+    };
   }, [active]);
   useEffect(() => {
     const navigate = (event: MouseEvent) => {
@@ -60,6 +80,9 @@ export default function NavigationProgress() {
         destination.pathname === currentPath.current
       )
         return;
+      navigationStartedAt.current = performance.now();
+      setOverlayVisible(false);
+      setExpanded(false);
       setSlow(false);
       setDestination(destination.pathname);
       setActive(true);
@@ -81,9 +104,14 @@ export default function NavigationProgress() {
       >
         <span />
       </div>
-      {active && (
-        <div className="route-transition" role="status" aria-live="polite">
+      {active && overlayVisible && (
+        <div
+          className={`route-transition ${expanded ? "is-expanded" : ""}`}
+          role="status"
+          aria-live="polite"
+        >
           <div className="route-transition__card">
+            <div className="route-transition__summary">
             <div className="route-transition__icon" aria-hidden="true">
               <Icon className="size-5" />
               <span />
@@ -109,6 +137,19 @@ export default function NavigationProgress() {
                 className="ml-auto size-4 shrink-0 animate-spin"
                 aria-hidden="true"
               />
+            )}
+            </div>
+            {expanded && (
+              <div className="route-transition__preview" aria-hidden="true">
+                <span className="route-transition__preview-label" />
+                <span className="route-transition__preview-title" />
+                <span className="route-transition__preview-copy" />
+                <div>
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
             )}
           </div>
         </div>
