@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, Compass, Menu, PenLine, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
 import SearchPalette from "@/components/SearchPalette";
@@ -14,6 +14,18 @@ const navigation = [
 export default function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Tracks whether the nav-slider indicator has completed its first paint.
+  // On the very first render the indicator must snap straight to the active
+  // tab's position with no transition; animating in from its default (first
+  // tab) position on initial page load is what produced the rendering
+  // glitch in the 3-button group. This is plain React state set from an
+  // effect after mount — not a ref read during render, which the lint rule
+  // react-hooks/refs (and React itself) disallow.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const found = navigation.findIndex((item) => pathname.startsWith(item.match));
   const activeIndex = Math.max(0, found);
   return (
@@ -37,6 +49,7 @@ export default function Header() {
             style={{
               transform: `translateX(${activeIndex * 100}%)`,
               opacity: found < 0 ? 0 : 1,
+              transition: settled ? undefined : "none",
             }}
             aria-hidden="true"
           />

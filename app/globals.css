@@ -232,6 +232,13 @@ select:focus-visible {
   border-radius: 999px;
   background: #fff;
   box-shadow: 0 2px 10px rgba(37, 29, 33, 0.08);
+  /* No transition by default: the indicator must land in its correct spot
+     on first paint without visibly sliding into place. The transition is
+     enabled once via the `--ready` modifier, added after the first mount,
+     so subsequent tab switches still animate smoothly. */
+  transition: none;
+}
+.nav-slider__indicator--ready {
   transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .nav-slider__item {
