@@ -16,10 +16,19 @@ type Item = {
 export default function CommunityStoryFeed() {
   const [items, setItems] = useState<Item[]>([]);
   useEffect(() => {
-    fetch("/api/community?resource=stories")
+    const controller = new AbortController();
+    // The default listing is cacheable server-side (see /api/community),
+    // so opting into the browser's HTTP cache here means repeat visits to
+    // the Stories view within the revalidation window resolve instantly
+    // instead of blocking on a fresh network round trip every time.
+    fetch("/api/community?resource=stories", {
+      signal: controller.signal,
+      cache: "force-cache",
+    })
       .then((r) => r.json())
       .then((data) => setItems(data.items ?? []))
       .catch(() => undefined);
+    return () => controller.abort();
   }, []);
   if (!items.length) return null;
   return (
