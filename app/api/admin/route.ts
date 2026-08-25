@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
       users: ["admin_users", { p_search: q, p_limit: 100 }],
       activity: ["admin_activity", { p_limit: 100 }],
       reports: ["admin_reports", {}],
+      sources: ["admin_music_candidates", {}],
       audit: ["admin_audit", { p_limit: 100 }],
     };
     if (view === "overview")
@@ -107,6 +108,15 @@ export async function POST(request: NextRequest) {
       status?: string;
       points?: number;
       reportId?: string;
+      candidateId?: string;
+      source?: string;
+      sourcePageUrl?: string;
+      title?: string;
+      artistName?: string;
+      detectedLicense?: string;
+      licenseUrl?: string;
+      rightsEvidence?: string;
+      decision?: string;
       reason?: string;
     };
     const reason = body.reason?.trim() ?? "";
@@ -126,6 +136,26 @@ export async function POST(request: NextRequest) {
       "resolve-report": [
         "admin_resolve_report",
         { p_report_id: body.reportId, p_status: body.status, p_reason: reason },
+      ],
+      "add-music-candidate": [
+        "admin_add_music_candidate",
+        {
+          p_source: body.source,
+          p_source_page_url: body.sourcePageUrl,
+          p_title: body.title,
+          p_artist_name: body.artistName,
+          p_detected_license: body.detectedLicense,
+          p_license_url: body.licenseUrl,
+          p_rights_evidence: body.rightsEvidence,
+        },
+      ],
+      "review-music-candidate": [
+        "admin_review_music_candidate",
+        {
+          p_candidate_id: body.candidateId,
+          p_decision: body.decision,
+          p_notes: reason,
+        },
       ],
     };
     if (!body.action || !calls[body.action])

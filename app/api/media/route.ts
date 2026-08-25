@@ -161,7 +161,11 @@ export async function POST(request: NextRequest) {
       const object = await client.send(
         new HeadObjectCommand({ Bucket: bucket, Key: asset.object_key }),
       );
-      if (!object.ContentLength || object.ContentLength > MAX_FILE_SIZE) {
+      if (
+        !object.ContentLength ||
+        object.ContentLength > MAX_FILE_SIZE ||
+        object.ContentType !== asset.mime_type
+      ) {
         await client.send(
           new DeleteObjectCommand({ Bucket: bucket, Key: asset.object_key }),
         );
@@ -172,7 +176,13 @@ export async function POST(request: NextRequest) {
             method: "DELETE",
           },
         );
-        return json({ error: "The uploaded file has an invalid size." }, 400);
+        return json(
+          {
+            error:
+              "The uploaded object does not match its declared file type or size.",
+          },
+          400,
+        );
       }
       await dataApi(
         `media_assets?id=eq.${encodeURIComponent(body.assetId)}`,
@@ -235,12 +245,31 @@ export async function GET(request: NextRequest) {
   try {
     const publicAssetId = request.nextUrl.searchParams.get("assetId");
     if (publicAssetId) {
-      const assetResponse = await dataApi(`media_assets?id=eq.${encodeURIComponent(publicAssetId)}&visibility=eq.public&status=eq.ready&select=object_key,mime_type,file_name&limit=1`);
+      const assetResponse = await dataApi(
+        `media_assets?id=eq.${encodeURIComponent(publicAssetId)}&visibility=eq.public&status=eq.ready&select=object_key,mime_type,file_name&limit=1`,
+      );
       const asset = assetResponse.ok ? (await assetResponse.json())[0] : null;
       if (!asset) return json({ error: "Public media not found." }, 404);
       const { client, bucket } = getR2Config();
-      const streamUrl = await getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: asset.object_key, ResponseContentType: asset.mime_type, ResponseContentDisposition: `inline; filename="${safeFileName(asset.file_name)}"` }), { expiresIn: URL_LIFETIME_SECONDS });
-      return json({ streamUrl, mimeType: asset.mime_type, fileName: asset.file_name, expiresIn: URL_LIFETIME_SECONDS }, 200);
+      const streamUrl = await getSignedUrl(
+        client,
+        new GetObjectCommand({
+          Bucket: bucket,
+          Key: asset.object_key,
+          ResponseContentType: asset.mime_type,
+          ResponseContentDisposition: `inline; filename="${safeFileName(asset.file_name)}"`,
+        }),
+        { expiresIn: URL_LIFETIME_SECONDS },
+      );
+      return json(
+        {
+          streamUrl,
+          mimeType: asset.mime_type,
+          fileName: asset.file_name,
+          expiresIn: URL_LIFETIME_SECONDS,
+        },
+        200,
+      );
     }
     const auth = await authenticateRequest(request);
     if (!auth) return json({ error: "Authentication required." }, 401);

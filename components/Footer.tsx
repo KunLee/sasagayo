@@ -6,6 +6,7 @@ const groups = [
     links: [
       ["Discover", "/discover"],
       ["Stories", "/stories"],
+      ["Open music catalog", "/catalog"],
       ["Community pulse", "/insights"],
       ["Listening circles", "/circles"],
       ["Search", "/search"],

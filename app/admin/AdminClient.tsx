@@ -10,6 +10,7 @@ import {
   CircleGauge,
   FileWarning,
   LoaderCircle,
+  Music2,
   Search,
   ShieldCheck,
   Users,
@@ -65,13 +66,27 @@ type AuditRow = {
   metadata: Record<string, unknown>;
   created_at: string;
 };
-type Tab = "overview" | "users" | "activity" | "reports" | "audit";
+type SourceRow = {
+  id: string;
+  source: string;
+  source_page_url: string;
+  title: string;
+  artist_name: string;
+  detected_license: string;
+  license_url: string;
+  rights_evidence: string;
+  status: string;
+  discovered_at: string;
+  review_notes: string;
+};
+type Tab = "overview" | "users" | "activity" | "reports" | "sources" | "audit";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: CircleGauge },
   { id: "users", label: "Users", icon: Users },
   { id: "activity", label: "Logins", icon: Activity },
   { id: "reports", label: "Moderation", icon: FileWarning },
+  { id: "sources", label: "Music rights", icon: Music2 },
   { id: "audit", label: "Audit log", icon: BookOpen },
 ] as const;
 
@@ -210,6 +225,9 @@ export default function AdminClient() {
             )}
             {state === "ready" && tab === "reports" && (
               <ReportsView items={items as ReportRow[]} act={act} />
+            )}
+            {state === "ready" && tab === "sources" && (
+              <SourcesView items={items as SourceRow[]} act={act} />
             )}
             {state === "ready" && tab === "audit" && (
               <AuditView items={items as AuditRow[]} />
@@ -390,6 +408,183 @@ function ActivityView({ items }: { items: ActivityRow[] }) {
     </>
   );
 }
+function SourcesView({
+  items,
+  act,
+}: {
+  items: SourceRow[];
+  act: (p: Record<string, unknown>) => void;
+}) {
+  const [notes, setNotes] = useState("");
+  function add(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    act({
+      action: "add-music-candidate",
+      source: form.get("source"),
+      sourcePageUrl: form.get("sourcePageUrl"),
+      title: form.get("title"),
+      artistName: form.get("artistName"),
+      detectedLicense: form.get("detectedLicense"),
+      licenseUrl: form.get("licenseUrl"),
+      rightsEvidence: form.get("rightsEvidence"),
+    });
+    event.currentTarget.reset();
+  }
+  return (
+    <>
+      <div>
+        <h2 className="font-serif text-3xl">Music rights review</h2>
+        <p className="mt-2 text-xs leading-5 text-stone-500">
+          A source being playable or downloadable does not prove redistribution
+          rights. Record the evidence before approving a copy.
+        </p>
+      </div>
+      <form
+        onSubmit={add}
+        className="mt-6 grid gap-3 rounded-2xl border border-stone-900/8 bg-white p-5 sm:grid-cols-2"
+      >
+        <select name="source" className="h-11 rounded-xl border px-3 text-xs">
+          <option value="free_music_archive">Free Music Archive</option>
+          <option value="youtube">YouTube</option>
+          <option value="wikimedia_commons">Wikimedia Commons</option>
+          <option value="other">Other</option>
+        </select>
+        <input
+          name="sourcePageUrl"
+          required
+          type="url"
+          placeholder="HTTPS source page"
+          className="h-11 rounded-xl border px-3 text-xs"
+        />
+        <input
+          name="title"
+          required
+          placeholder="Track title"
+          className="h-11 rounded-xl border px-3 text-xs"
+        />
+        <input
+          name="artistName"
+          placeholder="Artist / performer"
+          className="h-11 rounded-xl border px-3 text-xs"
+        />
+        <input
+          name="detectedLicense"
+          placeholder="License shown on source"
+          className="h-11 rounded-xl border px-3 text-xs"
+        />
+        <input
+          name="licenseUrl"
+          type="url"
+          placeholder="License or permission URL"
+          className="h-11 rounded-xl border px-3 text-xs"
+        />
+        <textarea
+          name="rightsEvidence"
+          placeholder="Evidence: license text, permission owner, or why this must remain link-only"
+          className="min-h-20 rounded-xl border p-3 text-xs sm:col-span-2"
+        />
+        <button className="h-10 rounded-full bg-[var(--theme-invert)] px-5 text-xs font-semibold text-[var(--theme-invert-text)] sm:col-span-2 sm:w-fit">
+          Add source for review
+        </button>
+      </form>
+      <label className="mt-8 grid gap-2 text-[10px] font-bold uppercase tracking-[.12em] text-stone-500">
+        Review notes
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="min-h-20 rounded-xl border bg-white p-3 text-xs font-normal normal-case tracking-normal"
+          placeholder="Explain the evidence and decision (required)"
+        />
+      </label>
+      <div className="mt-5 grid gap-3">
+        {items.length ? (
+          items.map((item) => (
+            <article
+              key={item.id}
+              className="rounded-2xl border border-stone-900/8 bg-white p-5"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <Badge>{item.status}</Badge>
+                  <h3 className="mt-3 font-serif text-xl">{item.title}</h3>
+                  <p className="mt-1 text-xs text-stone-500">
+                    {item.artist_name} · {item.source.replaceAll("_", " ")} ·{" "}
+                    {item.detected_license}
+                  </p>
+                </div>
+                <a
+                  href={item.source_page_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-semibold text-[var(--theme-accent)]"
+                >
+                  Inspect source ↗
+                </a>
+              </div>
+              {item.rights_evidence && (
+                <p className="mt-4 text-xs leading-5 text-stone-500">
+                  {item.rights_evidence}
+                </p>
+              )}
+              {item.status === "pending" && (
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <button
+                    disabled={notes.trim().length < 5}
+                    onClick={() =>
+                      act({
+                        action: "review-music-candidate",
+                        candidateId: item.id,
+                        decision: "approved",
+                        reason: notes,
+                      })
+                    }
+                    className="rounded-full border px-3 py-2 text-[10px] font-semibold disabled:opacity-30"
+                  >
+                    Rights approved
+                  </button>
+                  <button
+                    disabled={notes.trim().length < 5}
+                    onClick={() =>
+                      act({
+                        action: "review-music-candidate",
+                        candidateId: item.id,
+                        decision: "link_only",
+                        reason: notes,
+                      })
+                    }
+                    className="rounded-full bg-[var(--theme-accent)] px-3 py-2 text-[10px] font-semibold text-white disabled:opacity-30"
+                  >
+                    External link only
+                  </button>
+                  <button
+                    disabled={notes.trim().length < 5}
+                    onClick={() =>
+                      act({
+                        action: "review-music-candidate",
+                        candidateId: item.id,
+                        decision: "rejected",
+                        reason: notes,
+                      })
+                    }
+                    className="rounded-full border px-3 py-2 text-[10px] font-semibold disabled:opacity-30"
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
+            </article>
+          ))
+        ) : (
+          <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-stone-500">
+            No music sources are awaiting review.
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
 function ReportsView({
   items,
   act,

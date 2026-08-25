@@ -3,6 +3,12 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, LoaderCircle, ShieldCheck, UserRound } from "lucide-react";
 export default function ProfileSettings() {
+  const [profile, setProfile] = useState({
+    displayName: "",
+    handle: "",
+    location: "",
+    bio: "",
+  });
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -10,14 +16,27 @@ export default function ProfileSettings() {
   useEffect(() => {
     fetch("/api/auth", { cache: "no-store" })
       .then((r) => r.json())
-      .then((data) => {
+      .then(async (data) => {
         const signedIn = Boolean(data.user);
-        setAuthenticated(signedIn);
         if (signedIn) {
+          const profileResponse = await fetch("/api/insights?scope=me", {
+            cache: "no-store",
+          });
+          if (profileResponse.ok) {
+            const result = await profileResponse.json();
+            if (result.profile)
+              setProfile({
+                displayName: result.profile.display_name ?? "",
+                handle: result.profile.handle ?? "",
+                location: result.profile.location ?? "",
+                bio: result.profile.bio ?? "",
+              });
+          }
           fetch("/api/admin", { cache: "no-store" })
             .then((response) => setIsAdmin(response.ok))
             .catch(() => setIsAdmin(false));
         }
+        setAuthenticated(signedIn);
       })
       .catch(() => setAuthenticated(false));
   }, []);
@@ -97,17 +116,20 @@ export default function ProfileSettings() {
             name="displayName"
             label="Display name"
             placeholder="Your name"
+            defaultValue={profile.displayName}
           />
           <Field
             name="handle"
             label="Handle"
             placeholder="curiousears"
             pattern="[a-z0-9_]{3,30}"
+            defaultValue={profile.handle}
           />
           <Field
             name="location"
             label="Location"
             placeholder="Perth, Australia"
+            defaultValue={profile.location}
           />
         </div>
         <label className="grid gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-stone-500">
@@ -115,6 +137,7 @@ export default function ProfileSettings() {
           <textarea
             name="bio"
             maxLength={280}
+            defaultValue={profile.bio}
             className="min-h-28 rounded-2xl border border-stone-900/10 bg-white p-4 text-sm font-normal leading-6 normal-case tracking-normal outline-none focus:border-[#a74735]"
             placeholder="What do you listen for?"
           />
@@ -144,11 +167,13 @@ function Field({
   label,
   placeholder,
   pattern,
+  defaultValue,
 }: {
   name: string;
   label: string;
   placeholder: string;
   pattern?: string;
+  defaultValue?: string;
 }) {
   return (
     <label className="grid gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-stone-500">
@@ -157,6 +182,7 @@ function Field({
         name={name}
         required
         pattern={pattern}
+        defaultValue={defaultValue}
         className="h-12 rounded-2xl border border-stone-900/10 bg-white px-4 text-sm font-normal normal-case tracking-normal outline-none focus:border-[#a74735]"
         placeholder={placeholder}
       />
