@@ -53,11 +53,16 @@ export async function GET(request: NextRequest) {
     if ("error" in checked) return checked.error;
     const view = request.nextUrl.searchParams.get("view") ?? "overview";
     const q = request.nextUrl.searchParams.get("q")?.slice(0, 80) ?? "";
+    const status =
+      request.nextUrl.searchParams.get("status")?.slice(0, 24) ?? "";
     const map: Record<string, [string, object]> = {
       users: ["admin_users", { p_search: q, p_limit: 100 }],
       activity: ["admin_activity", { p_limit: 100 }],
       reports: ["admin_reports", {}],
-      sources: ["admin_music_candidates", {}],
+      sources: [
+        "admin_music_candidates",
+        { p_search: q, p_status: status, p_limit: 300 },
+      ],
       audit: ["admin_audit", { p_limit: 100 }],
     };
     if (view === "overview")
@@ -109,6 +114,8 @@ export async function POST(request: NextRequest) {
       points?: number;
       reportId?: string;
       candidateId?: string;
+      trackId?: string;
+      publicationStatus?: string;
       source?: string;
       sourcePageUrl?: string;
       title?: string;
@@ -155,6 +162,18 @@ export async function POST(request: NextRequest) {
           p_candidate_id: body.candidateId,
           p_decision: body.decision,
           p_notes: reason,
+        },
+      ],
+      "retry-music-candidate": [
+        "admin_retry_music_candidate",
+        { p_candidate_id: body.candidateId, p_reason: reason },
+      ],
+      "set-catalog-publication": [
+        "admin_set_catalog_publication",
+        {
+          p_track_id: body.trackId,
+          p_status: body.publicationStatus,
+          p_reason: reason,
         },
       ],
     };

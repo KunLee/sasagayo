@@ -53,6 +53,21 @@ The R2 bucket needs a CORS rule allowing `GET`, `HEAD`, and `PUT` from the web
 application. An R2 Admin Read & Write token can apply the checked-in rule with
 `npm run r2:configure-cors`.
 
+The authenticated `GET /api/cron/import-music` route performs a deliberately
+gentle Wikimedia Commons import. It defaults to at most five licensed tracks,
+100 MB total, and a 1.5 second pause between downloads per invocation. Configure
+those soft limits with `MUSIC_IMPORT_BATCH_SIZE` (hard cap 10),
+`MUSIC_IMPORT_MAX_RUN_MB` (hard cap 250), and `MUSIC_IMPORT_DELAY_MS` (minimum
+500 ms). The job also stops before the Vercel function deadline, skips duplicate
+SHA-1 hashes, and isolates individual candidate failures.
+
+Every valid search result is persisted in `music_source_candidates` before a
+download is attempted. Automatically verifiable licences enter the ready queue;
+uncertain rights remain pending for an administrator. Successful imports create
+private `catalog_tracks` drafts in R2, which become publicly readable only after
+an administrator publishes them from **Admin → Discovery inbox**. Failed items
+can be safely retried and link-only recommendations never copy the source file.
+
 ## Linting
 
 ```bash

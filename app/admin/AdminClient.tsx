@@ -78,6 +78,14 @@ type SourceRow = {
   status: string;
   discovered_at: string;
   review_notes: string;
+  source_file_url: string;
+  last_seen_at: string;
+  mime_type: string;
+  size_bytes: number;
+  attempt_count: number;
+  last_error: string;
+  catalog_track_id: string | null;
+  publication_status: "draft" | "published" | "unpublished" | null;
 };
 type Tab = "overview" | "users" | "activity" | "reports" | "sources" | "audit";
 
@@ -86,7 +94,7 @@ const tabs = [
   { id: "users", label: "Users", icon: Users },
   { id: "activity", label: "Logins", icon: Activity },
   { id: "reports", label: "Moderation", icon: FileWarning },
-  { id: "sources", label: "Music rights", icon: Music2 },
+  { id: "sources", label: "Discovery inbox", icon: Music2 },
   { id: "audit", label: "Audit log", icon: BookOpen },
 ] as const;
 
@@ -416,6 +424,23 @@ function SourcesView({
   act: (p: Record<string, unknown>) => void;
 }) {
   const [notes, setNotes] = useState("");
+  const [sourceQuery, setSourceQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const filtered = items.filter((item) => {
+    const needle = sourceQuery.trim().toLocaleLowerCase();
+    return (
+      (statusFilter === "all" || item.status === statusFilter) &&
+      (!needle ||
+        [item.title, item.artist_name, item.detected_license, item.source]
+          .join(" ")
+          .toLocaleLowerCase()
+          .includes(needle))
+    );
+  });
+  const counts = items.reduce<Record<string, number>>((result, item) => {
+    result[item.status] = (result[item.status] ?? 0) + 1;
+    return result;
+  }, {});
   function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -434,11 +459,27 @@ function SourcesView({
   return (
     <>
       <div>
-        <h2 className="font-serif text-3xl">Music rights review</h2>
+        <p className="micro-label text-[var(--theme-accent)]">Music operations</p>
+        <h2 className="mt-2 font-serif text-3xl">Discovery inbox</h2>
         <p className="mt-2 text-xs leading-5 text-stone-500">
-          A source being playable or downloadable does not prove redistribution
-          rights. Record the evidence before approving a copy.
+          Every valid discovery lands here before publication. Verified
+          licences enter the gentle import queue; uncertain rights wait for a
+          human decision; imported recordings remain private drafts until you
+          publish them.
         </p>
+      </div>
+      <div className="mt-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["Discovered", items.length],
+          ["Needs review", counts.pending ?? 0],
+          ["Queued", (counts.ready ?? 0) + (counts.approved ?? 0)],
+          ["Imported", counts.imported ?? 0],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-2xl border border-stone-900/8 bg-white p-4">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400">{label}</p>
+            <p className="mt-2 font-serif text-3xl">{value}</p>
+          </div>
+        ))}
       </div>
       <form
         onSubmit={add}
@@ -485,21 +526,37 @@ function SourcesView({
           className="min-h-20 rounded-xl border p-3 text-xs sm:col-span-2"
         />
         <button className="h-10 rounded-full bg-[var(--theme-invert)] px-5 text-xs font-semibold text-[var(--theme-invert-text)] sm:col-span-2 sm:w-fit">
-          Add source for review
+          Add source manually
         </button>
       </form>
-      <label className="mt-8 grid gap-2 text-[10px] font-bold uppercase tracking-[.12em] text-stone-500">
-        Review notes
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="min-h-20 rounded-xl border bg-white p-3 text-xs font-normal normal-case tracking-normal"
-          placeholder="Explain the evidence and decision (required)"
-        />
+      <div className="mt-8 grid gap-3 lg:grid-cols-[1fr_auto]">
+        <label className="flex h-11 items-center gap-2 rounded-xl border bg-white px-4">
+          <Search className="size-4 text-stone-400" />
+          <span className="sr-only">Search discovery inbox</span>
+          <input value={sourceQuery} onChange={(e) => setSourceQuery(e.target.value)} placeholder="Search title, performer, source, or licence" className="w-full bg-transparent text-xs outline-none" />
+        </label>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-11 rounded-xl border bg-white px-4 text-xs">
+          <option value="all">Every status</option>
+          <option value="pending">Needs rights review</option>
+          <option value="ready">Ready to import</option>
+          <option value="approved">Manually approved</option>
+          <option value="failed">Failed</option>
+          <option value="imported">Imported</option>
+          <option value="link_only">Link only</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      <label className="mt-3 grid gap-2 text-[10px] font-bold uppercase tracking-[.12em] text-stone-500">
+        Decision note
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-16 rounded-xl border bg-white p-3 text-xs font-normal normal-case tracking-normal" placeholder="Required for review, retry, and publication actions" />
       </label>
+      <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-wider text-stone-400">
+        <span>{filtered.length} of {items.length} candidates</span>
+        <span>Newest discoveries first</span>
+      </div>
       <div className="mt-5 grid gap-3">
-        {items.length ? (
-          items.map((item) => (
+        {filtered.length ? (
+          filtered.map((item) => (
             <article
               key={item.id}
               className="rounded-2xl border border-stone-900/8 bg-white p-5"
@@ -511,6 +568,11 @@ function SourcesView({
                   <p className="mt-1 text-xs text-stone-500">
                     {item.artist_name} · {item.source.replaceAll("_", " ")} ·{" "}
                     {item.detected_license}
+                  </p>
+                  <p className="mt-2 text-[10px] text-stone-400">
+                    {item.size_bytes ? `${(item.size_bytes / 1024 / 1024).toFixed(1)} MB` : "Size unknown"}
+                    {item.mime_type ? ` · ${item.mime_type}` : ""}
+                    {item.attempt_count ? ` · ${item.attempt_count} import attempt${item.attempt_count === 1 ? "" : "s"}` : ""}
                   </p>
                 </div>
                 <a
@@ -527,6 +589,16 @@ function SourcesView({
                   {item.rights_evidence}
                 </p>
               )}
+              {item.last_error && (
+                <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">
+                  Last import error: {item.last_error}
+                </p>
+              )}
+              {(item.status === "ready" || item.status === "approved") && (
+                <p className="mt-5 rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                  Queued for the next gentle import run. Importing is sequential and remains subject to the daily file and byte limits.
+                </p>
+              )}
               {item.status === "pending" && (
                 <div className="mt-5 flex flex-wrap gap-2">
                   <button
@@ -541,7 +613,7 @@ function SourcesView({
                     }
                     className="rounded-full border px-3 py-2 text-[10px] font-semibold disabled:opacity-30"
                   >
-                    Rights approved
+                    Approve for import
                   </button>
                   <button
                     disabled={notes.trim().length < 5}
@@ -573,11 +645,31 @@ function SourcesView({
                   </button>
                 </div>
               )}
+              {item.status === "failed" && (
+                <button disabled={notes.trim().length < 5} onClick={() => act({ action: "retry-music-candidate", candidateId: item.id, reason: notes })} className="mt-5 rounded-full bg-[var(--theme-invert)] px-4 py-2 text-[10px] font-semibold text-[var(--theme-invert-text)] disabled:opacity-30">
+                  Retry on next import run
+                </button>
+              )}
+              {item.status === "imported" && item.catalog_track_id && (
+                <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-stone-900/8 pt-4">
+                  <Badge>{item.publication_status ?? "draft"}</Badge>
+                  <span className="text-xs text-stone-500">
+                    {item.publication_status === "published" ? "Visible in the public catalogue" : "Stored safely in R2, hidden from public playback"}
+                  </span>
+                  <button
+                    disabled={notes.trim().length < 5}
+                    onClick={() => act({ action: "set-catalog-publication", trackId: item.catalog_track_id, publicationStatus: item.publication_status === "published" ? "unpublished" : "published", reason: notes })}
+                    className="ml-auto rounded-full bg-[var(--theme-accent)] px-4 py-2 text-[10px] font-semibold text-white disabled:opacity-30"
+                  >
+                    {item.publication_status === "published" ? "Unpublish" : "Publish to catalogue"}
+                  </button>
+                </div>
+              )}
             </article>
           ))
         ) : (
           <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-stone-500">
-            No music sources are awaiting review.
+            No candidates match this inbox view.
           </p>
         )}
       </div>

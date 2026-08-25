@@ -3,12 +3,16 @@
 import {
   Download,
   ExternalLink,
+  HardDrive,
   Library,
   LoaderCircle,
   Pause,
   Play,
+  RefreshCw,
+  Search,
+  ShieldCheck,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Track = {
   id: string;
@@ -19,6 +23,8 @@ type Track = {
   license_url: string;
   attribution: string;
   source_page_url: string;
+  size_bytes: number;
+  imported_at: string;
 };
 type Reference = {
   id: string;
@@ -33,19 +39,48 @@ export default function CatalogClient() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [references, setReferences] = useState<Reference[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [query, setQuery] = useState("");
   const [playing, setPlaying] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
   const audio = useRef<HTMLAudioElement>(null);
-  useEffect(() => {
+  const loadCatalog = useCallback(() => {
     fetch("/api/catalog", { cache: "no-store" })
-      .then((r) => r.json())
+      .then((response) => {
+        if (!response.ok) throw new Error("Catalog request failed.");
+        return response.json();
+      })
       .then((data) => {
         setTracks(data.tracks ?? []);
         setReferences(data.references ?? []);
       })
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => loadCatalog(), [loadCatalog]);
+  function retryCatalog() {
+    setLoading(true);
+    setError(false);
+    loadCatalog();
+  }
+  const visibleTracks = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase();
+    if (!needle) return tracks;
+    return tracks.filter((track) =>
+      [track.title, track.artist_name, track.license_name].some((value) =>
+        value.toLocaleLowerCase().includes(needle),
+      ),
+    );
+  }, [query, tracks]);
+  const storedBytes = tracks.reduce(
+    (total, track) => total + (track.size_bytes || 0),
+    0,
+  );
+  const storedSize =
+    storedBytes >= 1024 * 1024 * 1024
+      ? `${(storedBytes / 1024 / 1024 / 1024).toFixed(1)} GB`
+      : `${(storedBytes / 1024 / 1024).toFixed(storedBytes ? 1 : 0)} MB`;
   async function toggle(id: string) {
     if (playing === id) {
       audio.current?.pause();
@@ -95,13 +130,75 @@ export default function CatalogClient() {
           license, and attribution attached.
         </p>
       </header>
+      {!loading && !error && (
+        <section className="mt-10 grid overflow-hidden rounded-[28px] border border-stone-900/8 bg-white/45 sm:grid-cols-[1fr_auto_auto]">
+          <label className="flex min-h-16 items-center gap-3 px-5">
+            <Search className="size-4 shrink-0 text-[var(--theme-accent)]" />
+            <span className="sr-only">Search the open catalogue</span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search recording, performer, or licence"
+              className="w-full bg-transparent text-sm outline-none placeholder:text-stone-400"
+            />
+          </label>
+          <div className="flex min-w-40 items-center gap-3 border-t border-stone-900/8 px-5 sm:border-l sm:border-t-0">
+            <Library className="size-4 text-[var(--theme-accent)]" />
+            <div>
+              <strong className="block font-serif text-xl font-normal">
+                {tracks.length}
+              </strong>
+              <span className="text-[9px] uppercase tracking-wider text-stone-400">
+                open recordings
+              </span>
+            </div>
+          </div>
+          <div className="flex min-w-36 items-center gap-3 border-t border-stone-900/8 px-5 sm:border-l sm:border-t-0">
+            <HardDrive className="size-4 text-[var(--theme-accent)]" />
+            <div>
+              <strong className="block font-serif text-xl font-normal">
+                {storedSize}
+              </strong>
+              <span className="text-[9px] uppercase tracking-wider text-stone-400">
+                preserved
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
       {loading ? (
         <div className="grid min-h-64 place-items-center">
           <LoaderCircle className="size-6 animate-spin text-[var(--theme-accent)]" />
         </div>
+      ) : error ? (
+        <section className="mt-14 rounded-[30px] border border-dashed border-stone-900/15 p-12 text-center">
+          <RefreshCw className="mx-auto size-7 text-[var(--theme-accent)]" />
+          <h2 className="mt-5 font-serif text-3xl">The archive is resting.</h2>
+          <p className="mt-3 text-sm text-stone-500">
+            We could not reach the catalogue just now. Nothing has been lost.
+          </p>
+          <button
+            type="button"
+            onClick={retryCatalog}
+            className="mt-6 rounded-full bg-[var(--theme-invert)] px-5 py-3 text-xs font-semibold text-[var(--theme-invert-text)]"
+          >
+            Try again
+          </button>
+        </section>
       ) : tracks.length ? (
-        <section className="mt-12 grid gap-4 md:grid-cols-2">
-          {tracks.map((track) => (
+        <>
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-stone-500" aria-live="polite">
+            Showing {visibleTracks.length} of {tracks.length} recording{tracks.length === 1 ? "" : "s"}
+          </p>
+          <p className="inline-flex items-center gap-2 text-[10px] uppercase tracking-wider text-stone-400">
+            <ShieldCheck className="size-3.5 text-[var(--theme-accent)]" />
+            Licence checked before import
+          </p>
+        </div>
+        {visibleTracks.length ? (
+        <section className="mt-5 grid gap-4 md:grid-cols-2">
+          {visibleTracks.map((track) => (
             <article
               key={track.id}
               className="rounded-[28px] border border-stone-900/8 bg-white/55 p-6"
@@ -173,6 +270,14 @@ export default function CatalogClient() {
             </article>
           ))}
         </section>
+        ) : (
+          <section className="mt-5 rounded-[30px] border border-dashed border-stone-900/15 p-10 text-center">
+            <Search className="mx-auto size-6 text-[var(--theme-accent)]" />
+            <h2 className="mt-4 font-serif text-2xl">No matching recording.</h2>
+            <button type="button" onClick={() => setQuery("")} className="mt-3 text-xs font-semibold text-[var(--theme-accent)]">Clear search</button>
+          </section>
+        )}
+        </>
       ) : (
         <section className="mt-14 rounded-[30px] border border-dashed border-stone-900/15 p-12 text-center">
           <Library className="mx-auto size-7 text-[var(--theme-accent)]" />

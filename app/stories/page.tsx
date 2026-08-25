@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PenLine } from "lucide-react";
-import StoryCard from "@/components/StoryCard";
 import CommunityStoryFeed from "@/components/CommunityStoryFeed";
-import { stories } from "@/lib/community";
+import StoryExplorer from "@/components/StoryExplorer";
 
 export const metadata: Metadata = {
   title: "Stories",
@@ -34,23 +33,7 @@ export default function StoriesPage() {
           Tell your story
         </Link>
       </header>
-      <div className="mt-10 flex flex-wrap gap-2">
-        {["All stories", "Memory", "Discovery", "Reflection", "Ritual"].map(
-          (filter, index) => (
-            <span
-              key={filter}
-              className={`rounded-full px-4 py-2 text-xs ${index === 0 ? "bg-[#a74735] text-white" : "border border-stone-900/10 bg-white/35 text-stone-500"}`}
-            >
-              {filter}
-            </span>
-          ),
-        )}
-      </div>
-      <section className="mt-8 grid gap-5 lg:grid-cols-2">
-        {stories.map((story, index) => (
-          <StoryCard key={story.slug} story={story} featured={index === 0} />
-        ))}
-      </section>
+      <StoryExplorer />
       <CommunityStoryFeed />
       <div className="mt-14 rounded-[28px] bg-[#e6ddd0] p-8 text-center sm:p-12">
         <p className="micro-label text-[#a74735]">There is room for yours</p>
