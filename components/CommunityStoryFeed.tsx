@@ -15,6 +15,7 @@ type Item = {
 };
 export default function CommunityStoryFeed() {
   const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     const controller = new AbortController();
     // The default listing is cacheable server-side (see /api/community),
@@ -27,9 +28,27 @@ export default function CommunityStoryFeed() {
     })
       .then((r) => r.json())
       .then((data) => setItems(data.items ?? []))
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
     return () => controller.abort();
   }, []);
+  if (loading)
+    return (
+      <section
+        className="mt-14 border-t border-stone-900/8 pt-12"
+        aria-label="Loading community stories"
+      >
+        <div className="h-3 w-40 animate-pulse rounded-full bg-stone-900/8" />
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {[1, 2].map((item) => (
+            <div
+              key={item}
+              className="h-52 animate-pulse rounded-[24px] border border-stone-900/6 bg-white/40"
+            />
+          ))}
+        </div>
+      </section>
+    );
   if (!items.length) return null;
   return (
     <section className="mt-14 border-t border-stone-900/8 pt-12">

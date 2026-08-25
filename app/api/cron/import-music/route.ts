@@ -76,13 +76,13 @@ async function database(path: string, init: RequestInit = {}) {
 
 async function candidates() {
   const themes = [
-    "classical music",
-    "folk music",
-    "piano music",
-    "jazz music",
-    "traditional music",
-    "electronic music",
-    "choral music",
+    "baroque classical music",
+    "classical period music",
+    "romantic classical music",
+    "classical piano music",
+    "classical chamber music",
+    "classical orchestral music",
+    "early classical music",
   ];
   const theme = themes[Math.floor(Date.now() / 86_400_000) % themes.length];
   const query = new URLSearchParams({

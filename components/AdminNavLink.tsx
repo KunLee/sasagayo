@@ -8,9 +8,18 @@ export default function AdminNavLink() {
   const [allowed, setAllowed] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/admin", { cache: "no-store", signal: controller.signal })
+    fetch("/api/auth", { cache: "no-store", signal: controller.signal })
+      .then((response) => response.json())
+      .then((session) =>
+        session.user
+          ? fetch("/api/admin", {
+              cache: "no-store",
+              signal: controller.signal,
+            })
+          : null,
+      )
       .then((response) => {
-        if (response.ok) setAllowed(true);
+        if (response?.ok) setAllowed(true);
       })
       .catch(() => undefined);
     return () => controller.abort();

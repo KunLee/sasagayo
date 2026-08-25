@@ -610,3 +610,38 @@ select:focus-visible {
 [data-theme="ember"] [class~="text-[#f2c7ba]"] {
   color: #f2c7ba !important;
 }
+
+.route-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 200;
+  height: 3px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.route-progress.is-active {
+  opacity: 1;
+}
+.route-progress span {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--theme-accent),
+    var(--theme-accent-soft)
+  );
+  transform: translateX(-110%);
+}
+.route-progress.is-active span {
+  animation: route-progress 1.05s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes route-progress {
+  to {
+    transform: translateX(340%);
+  }
+}

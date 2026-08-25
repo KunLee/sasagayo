@@ -81,7 +81,7 @@ export default function CatalogClient() {
       <audio ref={audio} onEnded={() => setPlaying(null)} />
       <header className="max-w-3xl">
         <p className="micro-label text-[var(--theme-accent)]">
-          Open music library
+          Open classical library
         </p>
         <h1 className="mt-5 font-serif text-6xl leading-[.92] tracking-[-.04em] sm:text-8xl">
           Music we can{" "}
@@ -91,8 +91,8 @@ export default function CatalogClient() {
         </h1>
         <p className="mt-6 text-sm leading-7 text-stone-600">
           A growing daily collection of public-domain and Creative Commons
-          recordings. Every track keeps its source, creator, license, and
-          attribution attached.
+          classical recordings. Every performance keeps its source, performer,
+          license, and attribution attached.
         </p>
       </header>
       {loading ? (

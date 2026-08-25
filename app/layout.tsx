@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import PresenceTracker from "@/components/PresenceTracker";
+import NavigationProgress from "@/components/NavigationProgress";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 // Active site theme. See app/globals.css for the full 'Ember' token set
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body>
         <div className="site">
           <PresenceTracker />
+          <NavigationProgress />
           <Header />
           <main>{children}</main>
           <Footer />
