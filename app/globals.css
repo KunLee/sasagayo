@@ -645,3 +645,91 @@ select:focus-visible {
     transform: translateX(340%);
   }
 }
+
+.route-transition {
+  position: fixed;
+  inset: 4.5rem 0 0;
+  z-index: 49;
+  display: grid;
+  place-items: start center;
+  padding: clamp(1rem, 8vh, 5rem) 1rem;
+  background: color-mix(in srgb, var(--theme-bg) 68%, transparent);
+  backdrop-filter: blur(5px) saturate(0.82);
+  animation: route-transition-in 180ms ease-out both;
+  cursor: progress;
+}
+
+.route-transition__card {
+  display: flex;
+  width: min(31rem, 100%);
+  align-items: center;
+  gap: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--theme-ink) 10%, transparent);
+  border-radius: 1.35rem;
+  padding: 1rem 1.1rem;
+  background: color-mix(in srgb, var(--theme-surface) 94%, transparent);
+  box-shadow: 0 1.5rem 5rem color-mix(in srgb, var(--theme-ink) 14%, transparent);
+  cursor: default;
+}
+
+.route-transition__icon {
+  position: relative;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--theme-invert);
+  color: var(--theme-invert-text);
+}
+
+.route-transition__icon span {
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: var(--theme-accent-soft);
+  animation: route-icon-pulse 1.2s ease-in-out infinite;
+}
+
+.route-transition__label {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.route-transition__note {
+  margin-top: 0.25rem;
+  color: color-mix(in srgb, var(--theme-ink) 58%, transparent);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.route-transition__fallback {
+  margin-left: auto;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 0.65rem 0.85rem;
+  background: var(--theme-accent);
+  color: white;
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+@keyframes route-transition-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes route-icon-pulse {
+  0%, 100% { transform: scaleX(0.2); opacity: 0.45; }
+  50% { transform: scaleX(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-transition,
+  .route-transition__icon span {
+    animation: none;
+  }
+}

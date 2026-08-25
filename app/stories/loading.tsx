@@ -6,6 +6,9 @@ export default function StoriesLoading() {
       aria-label="Loading stories"
     >
       <div className="border-b border-stone-900/8 pb-12">
+        <p className="micro-label text-[var(--theme-accent)]">
+          Opening the story journal…
+        </p>
         <div className="h-2 w-28 rounded-full bg-stone-900/10" />
         <div className="mt-6 h-14 max-w-2xl rounded-2xl bg-stone-900/8 sm:h-20" />
         <div className="mt-4 h-14 max-w-xl rounded-2xl bg-stone-900/6" />
