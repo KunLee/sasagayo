@@ -62,6 +62,7 @@ export default function Header() {
               key={item.href}
               className={`nav-slider__item ${activeIndex === index && found >= 0 ? "is-active" : ""}`}
               href={item.href}
+              prefetch={true}
             >
               {index === 0 && <Compass className="size-3.5" />}
               {item.label}
@@ -116,6 +117,7 @@ export default function Header() {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 onClick={() => setMobileOpen(false)}
                 className="rounded-xl px-4 py-3 text-sm font-semibold hover:bg-white"
               >
