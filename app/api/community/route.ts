@@ -37,9 +37,11 @@ function response(
   body: unknown,
   status: number,
   refreshed?: Parameters<typeof setSessionCookies>[1] | null,
+  cacheControl?: string,
 ) {
   const result = NextResponse.json(body, { status });
   if (refreshed) setSessionCookies(result, refreshed);
+  if (cacheControl) result.headers.set("Cache-Control", cacheControl);
   return result;
 }
 
@@ -52,17 +54,26 @@ function slugify(value: string) {
     .slice(0, 80);
 }
 
-async function api(path: string, token?: string, init: RequestInit = {}) {
+async function api(
+  path: string,
+  token?: string,
+  init: RequestInit & { next?: { revalidate?: number } } = {},
+) {
   const { url, publishableKey } = getSupabaseConfig();
+  const { next, ...rest } = init;
   return fetch(`${url}/rest/v1/${path}`, {
-    ...init,
+    ...rest,
     headers: {
       apikey: publishableKey,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       "Content-Type": "application/json",
       ...init.headers,
     },
-    cache: "no-store",
+    // Default listings (no query, unauthenticated) are safe to reuse for a
+    // short window instead of hitting Postgres on every single click into
+    // the Stories view. Mutations and search queries always opt back into
+    // no-store below.
+    ...(next ? { next } : { cache: "no-store" as const }),
   });
 }
 
@@ -78,10 +89,28 @@ export async function GET(request: NextRequest) {
       path = `profiles?select=id,handle,display_name,bio,location,avatar_url&or=(handle.ilike.*${encodeURIComponent(query)}*,display_name.ilike.*${encodeURIComponent(query)}*)&limit=12`;
     else
       path = `stories?select=id,slug,title,excerpt,category,mood,track_title,artist_name,published_at,profiles!stories_author_id_fkey(handle,display_name,location)&status=eq.published&order=published_at.desc.nullslast&limit=24${query ? `&or=(title.ilike.*${encodeURIComponent(query)}*,artist_name.ilike.*${encodeURIComponent(query)}*,track_title.ilike.*${encodeURIComponent(query)}*)` : ""}`;
-    const result = await api(path);
+
+    // The default (unfiltered) listings back the Stories menu item and are
+    // identical for every visitor, so they can be cached briefly at the edge
+    // and in the browser instead of re-querying Postgres on every click.
+    // Search queries remain uncached since they are keyed by arbitrary user
+    // input.
+    const cacheable = !query;
+    const result = await api(
+      path,
+      undefined,
+      cacheable ? { next: { revalidate: 30 } } : {},
+    );
     if (!result.ok)
       return response({ error: "Community data could not be loaded." }, 502);
-    return response({ items: await result.json() }, 200);
+    return response(
+      { items: await result.json() },
+      200,
+      null,
+      cacheable
+        ? "public, max-age=15, stale-while-revalidate=45"
+        : undefined,
+    );
   } catch (error) {
     console.error("Community read failed", error);
     return response({ error: "Community service is unavailable." }, 503);
