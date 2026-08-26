@@ -34,12 +34,12 @@ async function database(path: string, init: RequestInit = {}) {
   return fetch(`${url}/rest/v1/${path}`, { ...init, signal: init.signal ?? AbortSignal.timeout(8_000), cache: "no-store", headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json", ...init.headers } });
 }
 function extension(mime: string) {
-  return ({ "audio/ogg":"ogg", "audio/mpeg":"mp3", "audio/flac":"flac", "audio/wav":"wav", "audio/x-wav":"wav", "audio/webm":"webm", "audio/mp4":"m4a" } as Record<string,string>)[mime] ?? "audio";
+  return ({ "audio/ogg":"ogg", "audio/mpeg":"mp3", "audio/flac":"flac", "audio/x-flac":"flac", "audio/wav":"wav", "audio/x-wav":"wav", "audio/webm":"webm", "audio/mp4":"m4a" } as Record<string,string>)[mime] ?? "audio";
 }
 function classify(error: unknown) {
   const message = error instanceof Error ? error.message.slice(0, 240) : "Unknown candidate failure.";
   const status = Number(message.match(/\b(4\d\d|5\d\d)\b/)?.[1]);
-  if (status === 429 || status >= 500 || /timeout|fetch failed|network/i.test(message)) return { message, kind: "transient", retry: true };
+  if (status === 429 || status >= 500 || /timeout|abort|fetch failed|network/i.test(message)) return { message, kind: "transient", retry: true };
   if (/R2|storage/i.test(message)) return { message, kind: "storage", retry: true };
   if (/database|catalog insert|duplicate check|candidate state/i.test(message)) return { message, kind: "database", retry: true };
   if (/license|rights/i.test(message)) return { message, kind: "rights", retry: false };
