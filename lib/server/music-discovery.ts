@@ -188,9 +188,20 @@ export function compatibleAudioType(expected: string, received: string, filename
   return received.startsWith("audio/") || aliases[expected]?.includes(received) || (received === "application/octet-stream" && inferred === expected);
 }
 
-export async function discoverMusic() {
-  const themes = ["baroque classical music", "classical period music", "romantic classical music", "classical piano", "classical chamber music", "classical orchestral music", "early classical music"];
-  const theme = themes[Math.floor(Date.now() / 86_400_000) % themes.length];
+export const PRIORITY_COMPOSERS = [
+    "Wolfgang Amadeus Mozart", "Frédéric Chopin", "Ludwig van Beethoven",
+    "Johann Sebastian Bach", "Antonio Vivaldi", "Pyotr Ilyich Tchaikovsky",
+    "Franz Schubert", "Johannes Brahms", "George Frideric Handel",
+    "Claude Debussy", "Maurice Ravel", "Franz Liszt", "Joseph Haydn",
+    "Robert Schumann", "Felix Mendelssohn", "Sergei Rachmaninoff",
+    "Gustav Mahler", "Antonín Dvořák", "Edvard Grieg", "Camille Saint-Saëns",
+    "Giacomo Puccini", "Giuseppe Verdi", "Igor Stravinsky", "Erik Satie",
+  ] as const;
+
+export async function discoverMusic(requestedComposer?: string | null) {
+  const composer = PRIORITY_COMPOSERS.find((item) => item.toLocaleLowerCase() === requestedComposer?.trim().toLocaleLowerCase())
+    ?? PRIORITY_COMPOSERS[Math.floor(Date.now() / 86_400_000) % PRIORITY_COMPOSERS.length];
+  const theme = `\"${composer}\" classical music`;
   const settled = await Promise.allSettled([
     discoverWikimedia(theme), discoverInternetArchive(theme), discoverLibraryOfCongress(theme),
   ]);
@@ -201,5 +212,5 @@ export async function discoverMusic() {
     errors.push({ source: sources[index], error: result.reason instanceof Error ? result.reason.message : "Discovery failed." });
     return [];
   });
-  return { theme, candidates, errors };
+  return { theme, composer, candidates, errors };
 }

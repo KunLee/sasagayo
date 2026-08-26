@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   BookOpen,
@@ -426,6 +426,8 @@ function SourcesView({
   act: (p: Record<string, unknown>) => void;
 }) {
   const [notes, setNotes] = useState("");
+  const [noteRequired, setNoteRequired] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
   const [sourceQuery, setSourceQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const filtered = items.filter((item) => {
@@ -457,6 +459,16 @@ function SourcesView({
       rightsEvidence: form.get("rightsEvidence"),
     });
     event.currentTarget.reset();
+  }
+  function review(payload: Record<string, unknown>) {
+    if (notes.trim().length < 5) {
+      setNoteRequired(true);
+      noteRef.current?.focus();
+      noteRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    setNoteRequired(false);
+    act({ ...payload, reason: notes.trim() });
   }
   return (
     <>
@@ -550,9 +562,10 @@ function SourcesView({
           <option value="rejected">Rejected</option>
         </select>
       </div>
-      <label className="mt-3 grid gap-2 text-[10px] font-bold uppercase tracking-[.12em] text-stone-500">
-        Decision note
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-16 rounded-xl border bg-white p-3 text-xs font-normal normal-case tracking-normal" placeholder="Required for review, retry, and publication actions" />
+      <label className={`mt-3 grid gap-2 rounded-2xl border p-4 text-[10px] font-bold uppercase tracking-[.12em] ${noteRequired ? "border-red-300 bg-red-50 text-red-700" : "border-stone-900/8 bg-white/50 text-stone-500"}`}>
+        Decision note · required before an action
+        <textarea ref={noteRef} value={notes} onChange={(e) => { setNotes(e.target.value); if (e.target.value.trim().length >= 5) setNoteRequired(false); }} className="min-h-16 rounded-xl border bg-white p-3 text-xs font-normal normal-case tracking-normal" placeholder="Example: Recording licence and attribution verified on the source page." />
+        <span className="font-normal normal-case tracking-normal">This note protects the audit trail. Choose an action first and this field will be highlighted if it needs your attention.</span>
       </label>
       <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-wider text-stone-400">
         <span>{filtered.length} of {items.length} candidates</span>
@@ -611,51 +624,45 @@ function SourcesView({
               {item.status === "pending" && (
                 <div className="mt-5 flex flex-wrap gap-2">
                   <button
-                    disabled={notes.trim().length < 5}
                     onClick={() =>
-                      act({
+                      review({
                         action: "review-music-candidate",
                         candidateId: item.id,
                         decision: "approved",
-                        reason: notes,
                       })
                     }
-                    className="rounded-full border px-3 py-2 text-[10px] font-semibold disabled:opacity-30"
+                    className="rounded-full border px-3 py-2 text-[10px] font-semibold hover:bg-stone-50"
                   >
                     Approve for import
                   </button>
                   <button
-                    disabled={notes.trim().length < 5}
                     onClick={() =>
-                      act({
+                      review({
                         action: "review-music-candidate",
                         candidateId: item.id,
                         decision: "link_only",
-                        reason: notes,
                       })
                     }
-                    className="rounded-full bg-[var(--theme-accent)] px-3 py-2 text-[10px] font-semibold text-white disabled:opacity-30"
+                    className="rounded-full bg-[var(--theme-accent)] px-3 py-2 text-[10px] font-semibold text-white"
                   >
                     External link only
                   </button>
                   <button
-                    disabled={notes.trim().length < 5}
                     onClick={() =>
-                      act({
+                      review({
                         action: "review-music-candidate",
                         candidateId: item.id,
                         decision: "rejected",
-                        reason: notes,
                       })
                     }
-                    className="rounded-full border px-3 py-2 text-[10px] font-semibold disabled:opacity-30"
+                    className="rounded-full border px-3 py-2 text-[10px] font-semibold hover:bg-stone-50"
                   >
                     Reject
                   </button>
                 </div>
               )}
               {item.status === "failed" && (
-                <button disabled={notes.trim().length < 5} onClick={() => act({ action: "retry-music-candidate", candidateId: item.id, reason: notes })} className="mt-5 rounded-full bg-[var(--theme-invert)] px-4 py-2 text-[10px] font-semibold text-[var(--theme-invert-text)] disabled:opacity-30">
+                <button onClick={() => review({ action: "retry-music-candidate", candidateId: item.id })} className="mt-5 rounded-full bg-[var(--theme-invert)] px-4 py-2 text-[10px] font-semibold text-[var(--theme-invert-text)]">
                   Retry on next import run
                 </button>
               )}
@@ -666,9 +673,8 @@ function SourcesView({
                     {item.publication_status === "published" ? "Visible in the public catalogue" : "Stored safely in R2, hidden from public playback"}
                   </span>
                   <button
-                    disabled={notes.trim().length < 5}
-                    onClick={() => act({ action: "set-catalog-publication", trackId: item.catalog_track_id, publicationStatus: item.publication_status === "published" ? "unpublished" : "published", reason: notes })}
-                    className="ml-auto rounded-full bg-[var(--theme-accent)] px-4 py-2 text-[10px] font-semibold text-white disabled:opacity-30"
+                    onClick={() => review({ action: "set-catalog-publication", trackId: item.catalog_track_id, publicationStatus: item.publication_status === "published" ? "unpublished" : "published" })}
+                    className="ml-auto rounded-full bg-[var(--theme-accent)] px-4 py-2 text-[10px] font-semibold text-white"
                   >
                     {item.publication_status === "published" ? "Unpublish" : "Publish to catalogue"}
                   </button>

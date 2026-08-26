@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     const batchSize = bounded("MUSIC_IMPORT_BATCH_SIZE", 2, 1, 2);
     const byteBudget = bounded("MUSIC_IMPORT_MAX_RUN_MB", 100, 1, 250) * 1024 * 1024;
     const delayMs = bounded("MUSIC_IMPORT_DELAY_MS", 1500, 500, 10_000);
-    const discovery = await discoverMusic();
+    const discovery = await discoverMusic(request.nextUrl.searchParams.get("composer"));
     if (discovery.candidates.length) {
       const registered = await database("rpc/register_music_candidates", { method: "POST", body: JSON.stringify({ p_items: discovery.candidates }) });
       if (!registered.ok) throw new Error(`Candidate registration failed with ${registered.status}: ${(await registered.text()).slice(0, 200)}`);
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
       }
     }
     const sources = ["wikimedia_commons","internet_archive","library_of_congress"];
-    return Response.json({ success:true, imported:imports[0] ?? null, imports, discovery:{ theme:discovery.theme, found:discovery.candidates.length, bySource:Object.fromEntries(sources.map((source)=>[source,discovery.candidates.filter((item)=>item.source===source).length])), errors:discovery.errors }, summary:{ queued:queue.length, requested:batchSize, imported:imports.length, examined, skipped, failures:failures.length, downloadedBytes, durationMs:Date.now()-startedAt, stoppedByDeadline:Date.now()-startedAt>=RUN_DEADLINE_MS }, failures });
+    return Response.json({ success:true, imported:imports[0] ?? null, imports, discovery:{ composer:discovery.composer, theme:discovery.theme, found:discovery.candidates.length, bySource:Object.fromEntries(sources.map((source)=>[source,discovery.candidates.filter((item)=>item.source===source).length])), errors:discovery.errors }, summary:{ queued:queue.length, requested:batchSize, imported:imports.length, examined, skipped, failures:failures.length, downloadedBytes, durationMs:Date.now()-startedAt, stoppedByDeadline:Date.now()-startedAt>=RUN_DEADLINE_MS }, failures });
   } catch (error) {
     console.error("Daily music import failed", error);
     return Response.json({ error:"Daily music import failed.", detail:error instanceof Error ? error.message.slice(0,240) : undefined }, { status:500 });
