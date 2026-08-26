@@ -6,7 +6,7 @@ import { compatibleAudioType, discoverMusic, isAllowedDownload, MAX_SOURCE_SIZE,
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
-const RUN_DEADLINE_MS = 70_000;
+const RUN_DEADLINE_MS = 55_000;
 const DOWNLOAD_TIMEOUT_MS = 10_000;
 const STORAGE_TIMEOUT_MS = 12_000;
 
@@ -31,7 +31,7 @@ function config() {
 }
 async function database(path: string, init: RequestInit = {}) {
   const { url, key } = config();
-  return fetch(`${url}/rest/v1/${path}`, { ...init, cache: "no-store", headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json", ...init.headers } });
+  return fetch(`${url}/rest/v1/${path}`, { ...init, signal: init.signal ?? AbortSignal.timeout(8_000), cache: "no-store", headers: { apikey: key, ...(key.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json", ...init.headers } });
 }
 function extension(mime: string) {
   return ({ "audio/ogg":"ogg", "audio/mpeg":"mp3", "audio/flac":"flac", "audio/wav":"wav", "audio/x-wav":"wav", "audio/webm":"webm", "audio/mp4":"m4a" } as Record<string,string>)[mime] ?? "audio";
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) return Response.json({ error: "Unauthorized." }, { status: 401 });
   const startedAt = Date.now();
   try {
-    const batchSize = bounded("MUSIC_IMPORT_BATCH_SIZE", 5, 1, 10);
+    const batchSize = bounded("MUSIC_IMPORT_BATCH_SIZE", 2, 1, 2);
     const byteBudget = bounded("MUSIC_IMPORT_MAX_RUN_MB", 100, 1, 250) * 1024 * 1024;
     const delayMs = bounded("MUSIC_IMPORT_DELAY_MS", 1500, 500, 10_000);
     const discovery = await discoverMusic();
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     const imports: unknown[] = [], failures: Array<{ candidateId:string; class:string; retrying:boolean; reason:string }> = [];
     let downloadedBytes = 0, examined = 0, skipped = 0, lastDownloadAt = 0;
     for (const candidate of queue) {
-      if (imports.length >= batchSize || Date.now() - startedAt >= RUN_DEADLINE_MS) break;
+      if (imports.length >= batchSize || Date.now() - startedAt >= RUN_DEADLINE_MS - 20_000) break;
       examined += 1;
       try {
         if (!candidate.source_file_url || !candidate.source_sha1 || !candidate.mime_type?.startsWith("audio/") || !candidate.size_bytes || candidate.size_bytes > MAX_SOURCE_SIZE) throw new Error("Candidate metadata is incomplete or out of bounds.");
