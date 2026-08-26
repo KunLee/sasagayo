@@ -102,7 +102,7 @@ async function discoverWikimedia(theme: string): Promise<DiscoveredCandidate[]> 
 async function discoverInternetArchive(theme: string): Promise<DiscoveredCandidate[]> {
   const params = new URLSearchParams({
     q: `mediatype:audio AND (${theme})`, fl: "identifier,title,creator,licenseurl",
-    rows: "8", page: String((Math.floor(Date.now() / 86_400_000) % 5) + 1), output: "json",
+    rows: "4", page: String((Math.floor(Date.now() / 86_400_000) % 5) + 1), output: "json",
   });
   const search = await json(`https://archive.org/advancedsearch.php?${params}`) as {
     response?: { docs?: Array<{ identifier?: string; title?: unknown; creator?: unknown; licenseurl?: unknown }> };
@@ -112,7 +112,7 @@ async function discoverInternetArchive(theme: string): Promise<DiscoveredCandida
     try {
       const identifier = doc.identifier;
       if (!identifier) return null;
-      const metadata = await json(`https://archive.org/metadata/${encodeURIComponent(identifier)}/files`, 8_000) as {
+      const metadata = await json(`https://archive.org/metadata/${encodeURIComponent(identifier)}/files`, 6_000) as {
         result?: Array<{ name?: string; size?: string; sha1?: string; format?: string; source?: string }>;
       };
       const file = metadata.result?.find((item) => item.name && AUDIO_EXTENSIONS.test(item.name) && item.source === "original" && Number(item.size) > 0 && Number(item.size) <= MAX_SOURCE_SIZE);

@@ -2,11 +2,13 @@ import { createHash } from "node:crypto";
 import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { NextRequest } from "next/server";
 import { getR2Config } from "@/lib/server/r2";
-import { compatibleAudioType, discoverMusic, isAllowedDownload, MAX_SOURCE_SIZE, REQUEST_TIMEOUT_MS, USER_AGENT, type DiscoverySource } from "@/lib/server/music-discovery";
+import { compatibleAudioType, discoverMusic, isAllowedDownload, MAX_SOURCE_SIZE, USER_AGENT, type DiscoverySource } from "@/lib/server/music-discovery";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
-const RUN_DEADLINE_MS = 105_000;
+const RUN_DEADLINE_MS = 70_000;
+const DOWNLOAD_TIMEOUT_MS = 10_000;
+const STORAGE_TIMEOUT_MS = 12_000;
 
 type QueuedCandidate = {
   id: string; source: DiscoverySource; source_page_url: string; source_file_url: string; source_sha1: string;
@@ -86,7 +88,7 @@ export async function GET(request: NextRequest) {
         if (existing) { await updateCandidate(candidate.id, { status:"imported", catalog_track_id:existing.id, last_error:"", failure_class:"", next_attempt_at:null }); skipped += 1; continue; }
         if (downloadedBytes + candidate.size_bytes > byteBudget) { skipped += 1; continue; }
         const wait = delayMs - (Date.now() - lastDownloadAt); if (lastDownloadAt && wait > 0) await pause(wait);
-        const download = await fetch(sourceUrl, { headers:{ "User-Agent":USER_AGENT }, cache:"no-store", signal:AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+        const download = await fetch(sourceUrl, { headers:{ "User-Agent":USER_AGENT }, cache:"no-store", signal:AbortSignal.timeout(Math.min(DOWNLOAD_TIMEOUT_MS, Math.max(1_000, RUN_DEADLINE_MS - (Date.now() - startedAt)))) });
         lastDownloadAt = Date.now();
         if (!download.ok) throw new Error(`Source download failed with ${download.status}.`);
         const length = Number(download.headers.get("content-length") ?? candidate.size_bytes);
@@ -99,9 +101,9 @@ export async function GET(request: NextRequest) {
         const checksum = createHash("sha256").update(bytes).digest("hex");
         const objectKey = `catalog/${candidate.source}/${candidate.source_sha1}.${extension(candidate.mime_type)}`;
         const { client, bucket } = getR2Config();
-        await client.send(new PutObjectCommand({ Bucket:bucket, Key:objectKey, Body:bytes, ContentType:candidate.mime_type, CacheControl:"public, max-age=31536000, immutable", Metadata:{ source:candidate.source, sha256:checksum } }));
+        await client.send(new PutObjectCommand({ Bucket:bucket, Key:objectKey, Body:bytes, ContentType:candidate.mime_type, CacheControl:"public, max-age=31536000, immutable", Metadata:{ source:candidate.source, sha256:checksum } }), { abortSignal: AbortSignal.timeout(STORAGE_TIMEOUT_MS) });
         const insert = await database("catalog_tracks", { method:"POST", headers:{ Prefer:"return=representation" }, body:JSON.stringify({ source:candidate.source, source_page_url:candidate.source_page_url, source_file_url:candidate.source_file_url, source_sha1:candidate.source_sha1, object_key:objectKey, title:candidate.title.slice(0,240), artist_name:candidate.artist_name.slice(0,240), description:(candidate.metadata.description ?? "").slice(0,2000), mime_type:candidate.mime_type, size_bytes:bytes.length, license_name:candidate.detected_license, license_url:candidate.license_url, attribution:(candidate.metadata.attribution ?? candidate.artist_name).slice(0,1000), metadata:{...candidate.metadata,sha256:checksum}, candidate_id:candidate.id, publication_status:"draft" }) });
-        if (!insert.ok) { await client.send(new DeleteObjectCommand({ Bucket:bucket, Key:objectKey })); throw new Error(`Catalog insert failed: ${(await insert.text()).slice(0,300)}`); }
+        if (!insert.ok) { await client.send(new DeleteObjectCommand({ Bucket:bucket, Key:objectKey }), { abortSignal: AbortSignal.timeout(STORAGE_TIMEOUT_MS) }); throw new Error(`Catalog insert failed: ${(await insert.text()).slice(0,300)}`); }
         const imported = (await insert.json() as Array<{id:string}>)[0];
         await updateCandidate(candidate.id, { status:"imported", catalog_track_id:imported.id, attempt_count:candidate.attempt_count+1, last_error:"", failure_class:"", next_attempt_at:null });
         imports.push(imported);
