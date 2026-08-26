@@ -53,11 +53,11 @@ function sourceHash(value: string) {
   return createHash("sha1").update(value).digest("hex");
 }
 
-async function json(url: string) {
+async function json(url: string, timeoutMs = REQUEST_TIMEOUT_MS) {
   const response = await fetch(url, {
     headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
     cache: "no-store",
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) throw new Error(`Discovery request failed with ${response.status}.`);
   return response.json() as Promise<unknown>;
@@ -102,23 +102,23 @@ async function discoverWikimedia(theme: string): Promise<DiscoveredCandidate[]> 
 async function discoverInternetArchive(theme: string): Promise<DiscoveredCandidate[]> {
   const params = new URLSearchParams({
     q: `mediatype:audio AND (${theme})`, fl: "identifier,title,creator,licenseurl",
-    rows: "12", page: String((Math.floor(Date.now() / 86_400_000) % 5) + 1), output: "json",
+    rows: "8", page: String((Math.floor(Date.now() / 86_400_000) % 5) + 1), output: "json",
   });
   const search = await json(`https://archive.org/advancedsearch.php?${params}`) as {
     response?: { docs?: Array<{ identifier?: string; title?: unknown; creator?: unknown; licenseurl?: unknown }> };
   };
-  const results: DiscoveredCandidate[] = [];
-  for (const doc of search.response?.docs ?? []) {
-    if (!doc.identifier) continue;
-    const metadata = await json(`https://archive.org/metadata/${encodeURIComponent(doc.identifier)}/files`) as {
-      result?: Array<{ name?: string; size?: string; sha1?: string; format?: string; source?: string }>;
-    };
-    const file = metadata.result?.find((item) => item.name && AUDIO_EXTENSIONS.test(item.name) && item.source === "original" && Number(item.size) > 0 && Number(item.size) <= MAX_SOURCE_SIZE);
-    if (!file?.name) continue;
-    const licenseUrl = first(doc.licenseurl);
-    const license = normalizedLicense("", licenseUrl);
-    const mime = mimeFromName(file.name);
-    results.push({
+  const docs = (search.response?.docs ?? []).filter((doc) => Boolean(doc.identifier));
+  const inspect = async (doc: (typeof docs)[number]): Promise<DiscoveredCandidate | null> => {
+    try {
+      const metadata = await json(`https://archive.org/metadata/${encodeURIComponent(doc.identifier as string)}/files`, 8_000) as {
+        result?: Array<{ name?: string; size?: string; sha1?: string; format?: string; source?: string }>;
+      };
+      const file = metadata.result?.find((item) => item.name && AUDIO_EXTENSIONS.test(item.name) && item.source === "original" && Number(item.size) > 0 && Number(item.size) <= MAX_SOURCE_SIZE);
+      if (!file?.name) return null;
+      const licenseUrl = first(doc.licenseurl);
+      const license = normalizedLicense("", licenseUrl);
+      const mime = mimeFromName(file.name);
+      return {
       source: "internet_archive", source_page_url: `https://archive.org/details/${encodeURIComponent(doc.identifier)}`,
       source_file_url: `https://archive.org/download/${encodeURIComponent(doc.identifier)}/${file.name.split("/").map(encodeURIComponent).join("/")}`,
       source_sha1: file.sha1 || sourceHash(`${doc.identifier}:${file.name}`),
@@ -130,7 +130,15 @@ async function discoverInternetArchive(theme: string): Promise<DiscoveredCandida
         : "Archive item discovered without sufficiently explicit compatible recording rights; administrator review is required.",
       status: AUTO_LICENSE.test(license) ? "ready" : "pending", mime_type: mime,
       size_bytes: Number(file.size), metadata: { archiveIdentifier: doc.identifier, archiveFormat: file.format, attribution: first(doc.creator) || "Unknown creator" },
-    });
+      };
+    } catch {
+      return null;
+    }
+  };
+  const results: DiscoveredCandidate[] = [];
+  for (let index = 0; index < docs.length; index += 2) {
+    const batch = await Promise.all(docs.slice(index, index + 2).map(inspect));
+    results.push(...batch.filter((item): item is DiscoveredCandidate => item !== null));
   }
   return results;
 }
