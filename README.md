@@ -7,7 +7,7 @@ can remain in HTTP-only cookies.
 
 ## Prerequisites
 
-- Node.js 18.17 or newer
+- Node.js 20.9 or newer
 - npm (ships with Node.js)
 
 ## Install
@@ -187,3 +187,20 @@ array.
   must not be committed.
 - Browsers cache favicons aggressively; hard-refresh (or open a private window)
   when checking the icon after a change.
+# Music discovery pipeline
+
+The protected daily route `/api/cron/import-music` discovers classical audio
+from Wikimedia Commons, Internet Archive, and the Library of Congress. Sources
+are isolated adapters: a failed source is reported without cancelling the other
+sources. Only Wikimedia and Internet Archive files with explicit compatible
+item-level licence metadata enter automatic ingestion. Library of Congress
+results and uncertain rights remain in the administrator Discovery Inbox.
+
+Downloads use an HTTPS host allowlist, file and run byte limits, MIME alias
+validation, hashes, sequential pacing, classified failures, and exponential
+retry for transient, storage, and database errors. Imported recordings are R2
+objects and private catalogue drafts until an administrator publishes them.
+
+Apply all Supabase migrations before deploying. Vercel invokes the route from
+the cron declaration in `vercel.json`; `CRON_SECRET` protects manual and
+scheduled calls.

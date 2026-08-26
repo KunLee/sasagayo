@@ -84,6 +84,8 @@ type SourceRow = {
   size_bytes: number;
   attempt_count: number;
   last_error: string;
+  failure_class: string;
+  next_attempt_at: string | null;
   catalog_track_id: string | null;
   publication_status: "draft" | "published" | "unpublished" | null;
 };
@@ -486,6 +488,8 @@ function SourcesView({
         className="mt-6 grid gap-3 rounded-2xl border border-stone-900/8 bg-white p-5 sm:grid-cols-2"
       >
         <select name="source" className="h-11 rounded-xl border px-3 text-xs">
+          <option value="internet_archive">Internet Archive</option>
+          <option value="library_of_congress">Library of Congress</option>
           <option value="free_music_archive">Free Music Archive</option>
           <option value="youtube">YouTube</option>
           <option value="wikimedia_commons">Wikimedia Commons</option>
@@ -591,7 +595,12 @@ function SourcesView({
               )}
               {item.last_error && (
                 <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">
-                  Last import error: {item.last_error}
+                  Last import error{item.failure_class ? ` (${item.failure_class})` : ""}: {item.last_error}
+                  {item.next_attempt_at && (
+                    <span className="mt-1 block text-[10px] text-red-500">
+                      Automatic retry after {new Date(item.next_attempt_at).toLocaleString()}
+                    </span>
+                  )}
                 </p>
               )}
               {(item.status === "ready" || item.status === "approved") && (
