@@ -110,7 +110,9 @@ async function discoverInternetArchive(theme: string): Promise<DiscoveredCandida
   const docs = (search.response?.docs ?? []).filter((doc) => Boolean(doc.identifier));
   const inspect = async (doc: (typeof docs)[number]): Promise<DiscoveredCandidate | null> => {
     try {
-      const metadata = await json(`https://archive.org/metadata/${encodeURIComponent(doc.identifier as string)}/files`, 8_000) as {
+      const identifier = doc.identifier;
+      if (!identifier) return null;
+      const metadata = await json(`https://archive.org/metadata/${encodeURIComponent(identifier)}/files`, 8_000) as {
         result?: Array<{ name?: string; size?: string; sha1?: string; format?: string; source?: string }>;
       };
       const file = metadata.result?.find((item) => item.name && AUDIO_EXTENSIONS.test(item.name) && item.source === "original" && Number(item.size) > 0 && Number(item.size) <= MAX_SOURCE_SIZE);
@@ -119,17 +121,17 @@ async function discoverInternetArchive(theme: string): Promise<DiscoveredCandida
       const license = normalizedLicense("", licenseUrl);
       const mime = mimeFromName(file.name);
       return {
-      source: "internet_archive", source_page_url: `https://archive.org/details/${encodeURIComponent(doc.identifier)}`,
-      source_file_url: `https://archive.org/download/${encodeURIComponent(doc.identifier)}/${file.name.split("/").map(encodeURIComponent).join("/")}`,
-      source_sha1: file.sha1 || sourceHash(`${doc.identifier}:${file.name}`),
-      title: first(doc.title).slice(0, 240) || doc.identifier.slice(0, 240),
+      source: "internet_archive", source_page_url: `https://archive.org/details/${encodeURIComponent(identifier)}`,
+      source_file_url: `https://archive.org/download/${encodeURIComponent(identifier)}/${file.name.split("/").map(encodeURIComponent).join("/")}`,
+      source_sha1: file.sha1 || sourceHash(`${identifier}:${file.name}`),
+      title: first(doc.title).slice(0, 240) || identifier.slice(0, 240),
       artist_name: first(doc.creator).slice(0, 240) || "Unknown creator",
       detected_license: license, license_url: licenseUrl,
       rights_evidence: AUTO_LICENSE.test(license)
         ? "Internet Archive item metadata contains an explicit compatible license URL; retain the source page as evidence."
         : "Archive item discovered without sufficiently explicit compatible recording rights; administrator review is required.",
       status: AUTO_LICENSE.test(license) ? "ready" : "pending", mime_type: mime,
-      size_bytes: Number(file.size), metadata: { archiveIdentifier: doc.identifier, archiveFormat: file.format, attribution: first(doc.creator) || "Unknown creator" },
+      size_bytes: Number(file.size), metadata: { archiveIdentifier: identifier, archiveFormat: file.format, attribution: first(doc.creator) || "Unknown creator" },
       };
     } catch {
       return null;
