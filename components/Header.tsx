@@ -2,10 +2,27 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, Compass, Menu, PenLine, X } from "lucide-react";
+import {
+  Bell,
+  Compass,
+  LogOut,
+  Menu,
+  PenLine,
+  ShieldCheck,
+  UserRound,
+  X,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
 import SearchPalette from "@/components/SearchPalette";
 import AdminNavLink from "@/components/AdminNavLink";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 const navigation = [
   { label: "Discover", href: "/discover", match: "/discover" },
   { label: "Stories", href: "/stories", match: "/stories" },
@@ -23,6 +40,8 @@ export default function Header() {
   // effect after mount — not a ref read during render, which the lint rule
   // react-hooks/refs (and React itself) disallow.
   const [settled, setSettled] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     const frame = requestAnimationFrame(() => setSettled(true));
     return () => cancelAnimationFrame(frame);
@@ -30,6 +49,33 @@ export default function Header() {
   useEffect(() => {
     navigation.forEach((item) => router.prefetch(item.href));
   }, [router]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/auth", { cache: "no-store", signal: controller.signal })
+      .then((response) => response.json())
+      .then((session) => {
+        setSignedIn(Boolean(session.user));
+        if (!session.user) return null;
+        return fetch("/api/admin", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+      })
+      .then((response) => setIsAdmin(Boolean(response?.ok)))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+  async function logout() {
+    await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "logout" }),
+    });
+    setSignedIn(false);
+    setIsAdmin(false);
+    router.push("/account");
+    router.refresh();
+  }
   const found = navigation.findIndex((item) => pathname.startsWith(item.match));
   const activeIndex = Math.max(0, found);
   return (
@@ -86,14 +132,66 @@ export default function Header() {
             <PenLine className="size-4" />
             Share
           </Link>
-          <Link href="/account" aria-label="Your account">
-            <Avatar className="ring-2 ring-white" size="default">
-              <AvatarFallback className="bg-[#d8b36e] text-[10px] font-bold text-[#342824]">
-                YO
-              </AvatarFallback>
-              <AvatarBadge className="bg-emerald-500" />
-            </Avatar>
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#a74735]/40"
+              aria-label="Your account menu"
+            >
+              <Avatar className="ring-2 ring-white" size="default">
+                <AvatarFallback className="bg-[#d8b36e] text-[10px] font-bold text-[#342824]">
+                  YO
+                </AvatarFallback>
+                <AvatarBadge className="bg-emerald-500" />
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={8} className="w-56">
+              <DropdownMenuLabel className="" inset={false}>
+                {signedIn ? "Your account" : "Welcome"}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="" />
+              {signedIn ? (
+                <>
+                  <DropdownMenuItem
+                    className=""
+                    inset={false}
+                    onClick={() => router.push("/settings/profile")}
+                  >
+                    <UserRound className="size-4" />
+                    Update Profile
+                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem
+                      className=""
+                      inset={false}
+                      onClick={() => router.push("/admin")}
+                    >
+                      <ShieldCheck className="size-4" />
+                      Admin Page
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator className="" />
+                  <DropdownMenuItem
+                    className=""
+                    inset={false}
+                    variant="destructive"
+                    onClick={logout}
+                  >
+                    <LogOut className="size-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuItem
+                  className=""
+                  inset={false}
+                  onClick={() => router.push("/account")}
+                >
+                  <UserRound className="size-4" />
+                  Sign in
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="icon-button grid lg:hidden"
