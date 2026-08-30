@@ -3,9 +3,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Bell, Compass, Menu, PenLine, X } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
 import SearchPalette from "@/components/SearchPalette";
 import AdminNavLink from "@/components/AdminNavLink";
+import UserMenu from "@/components/UserMenu";
 const navigation = [
   { label: "Discover", href: "/discover", match: "/discover" },
   { label: "Stories", href: "/stories", match: "/stories" },
@@ -86,14 +86,7 @@ export default function Header() {
             <PenLine className="size-4" />
             Share
           </Link>
-          <Link href="/account" aria-label="Your account">
-            <Avatar className="ring-2 ring-white" size="default">
-              <AvatarFallback className="bg-[#d8b36e] text-[10px] font-bold text-[#342824]">
-                YO
-              </AvatarFallback>
-              <AvatarBadge className="bg-emerald-500" />
-            </Avatar>
-          </Link>
+          <UserMenu />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="icon-button grid lg:hidden"
