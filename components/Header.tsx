@@ -2,27 +2,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  Bell,
-  Compass,
-  LogOut,
-  Menu,
-  PenLine,
-  ShieldCheck,
-  UserRound,
-  X,
-} from "lucide-react";
-import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
+import { Bell, Compass, Menu, PenLine, X } from "lucide-react";
 import SearchPalette from "@/components/SearchPalette";
 import AdminNavLink from "@/components/AdminNavLink";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import UserMenu from "@/components/UserMenu";
 const navigation = [
   { label: "Discover", href: "/discover", match: "/discover" },
   { label: "Stories", href: "/stories", match: "/stories" },
@@ -132,66 +115,7 @@ export default function Header() {
             <PenLine className="size-4" />
             Share
           </Link>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#a74735]/40"
-              aria-label="Your account menu"
-            >
-              <Avatar className="ring-2 ring-white" size="default">
-                <AvatarFallback className="bg-[#d8b36e] text-[10px] font-bold text-[#342824]">
-                  YO
-                </AvatarFallback>
-                <AvatarBadge className="bg-emerald-500" />
-              </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={8} className="w-56">
-              <DropdownMenuLabel className="" inset={false}>
-                {signedIn ? "Your account" : "Welcome"}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator className="" />
-              {signedIn ? (
-                <>
-                  <DropdownMenuItem
-                    className=""
-                    inset={false}
-                    onClick={() => router.push("/settings/profile")}
-                  >
-                    <UserRound className="size-4" />
-                    Update Profile
-                  </DropdownMenuItem>
-                  {isAdmin && (
-                    <DropdownMenuItem
-                      className=""
-                      inset={false}
-                      onClick={() => router.push("/admin")}
-                    >
-                      <ShieldCheck className="size-4" />
-                      Admin Page
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator className="" />
-                  <DropdownMenuItem
-                    className=""
-                    inset={false}
-                    variant="destructive"
-                    onClick={logout}
-                  >
-                    <LogOut className="size-4" />
-                    Sign out
-                  </DropdownMenuItem>
-                </>
-              ) : (
-                <DropdownMenuItem
-                  className=""
-                  inset={false}
-                  onClick={() => router.push("/account")}
-                >
-                  <UserRound className="size-4" />
-                  Sign in
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <UserMenu />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="icon-button grid lg:hidden"
