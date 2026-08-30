@@ -60,7 +60,7 @@ function DropdownMenuGroup({
 
 function DropdownMenuLabel({
   className,
-  inset,
+  inset = false,
   ...props
 }) {
   return (
@@ -77,7 +77,7 @@ function DropdownMenuLabel({
 
 function DropdownMenuItem({
   className,
-  inset,
+  inset = false,
   variant = "default",
   ...props
 }) {
@@ -102,7 +102,7 @@ function DropdownMenuSub({
 
 function DropdownMenuSubTrigger({
   className,
-  inset,
+  inset = false,
   children,
   ...props
 }) {
@@ -148,7 +148,7 @@ function DropdownMenuCheckboxItem({
   className,
   children,
   checked,
-  inset,
+  inset = false,
   ...props
 }) {
   return (
@@ -182,7 +182,7 @@ function DropdownMenuRadioGroup({
 function DropdownMenuRadioItem({
   className,
   children,
-  inset,
+  inset = false,
   ...props
 }) {
   return (
