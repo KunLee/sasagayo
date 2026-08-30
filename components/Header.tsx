@@ -2,27 +2,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  Bell,
-  Compass,
-  Menu,
-  PenLine,
-  ShieldCheck,
-  Settings,
-  UserRound,
-  X,
-} from "lucide-react";
-import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Bell, Compass, Menu, PenLine, X } from "lucide-react";
 import SearchPalette from "@/components/SearchPalette";
 import AdminNavLink from "@/components/AdminNavLink";
+import UserMenu from "@/components/UserMenu";
 const navigation = [
   { label: "Discover", href: "/discover", match: "/discover" },
   { label: "Stories", href: "/stories", match: "/stories" },
@@ -32,7 +15,6 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   // Tracks whether the nav-slider indicator has completed its first paint.
   // On the very first render the indicator must snap straight to the active
   // tab's position with no transition; animating in from its default (first
@@ -48,22 +30,6 @@ export default function Header() {
   useEffect(() => {
     navigation.forEach((item) => router.prefetch(item.href));
   }, [router]);
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/auth", { cache: "no-store", signal: controller.signal })
-      .then((response) => response.json())
-      .then((session) =>
-        session.user
-          ? fetch("/api/admin", {
-              cache: "no-store",
-              signal: controller.signal,
-            })
-          : null,
-      )
-      .then((response) => setIsAdmin(Boolean(response?.ok)))
-      .catch(() => setIsAdmin(false));
-    return () => controller.abort();
-  }, []);
   const found = navigation.findIndex((item) => pathname.startsWith(item.match));
   const activeIndex = Math.max(0, found);
   return (
@@ -120,39 +86,7 @@ export default function Header() {
             <PenLine className="size-4" />
             Share
           </Link>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#a74735]/40"
-              aria-label="Your account menu"
-            >
-              <Avatar className="ring-2 ring-white" size="default">
-                <AvatarFallback className="bg-[#d8b36e] text-[10px] font-bold text-[#342824]">
-                  YO
-                </AvatarFallback>
-                <AvatarBadge className="bg-emerald-500" />
-              </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={8}>
-              <DropdownMenuLabel>Your account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push("/account")}>
-                <UserRound className="size-4" />
-                Profile details
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => router.push("/settings/profile")}
-              >
-                <Settings className="size-4" />
-                Manage profile
-              </DropdownMenuItem>
-              {isAdmin && (
-                <DropdownMenuItem onClick={() => router.push("/admin")}>
-                  <ShieldCheck className="size-4 text-[var(--theme-accent)]" />
-                  Admin page
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <UserMenu />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="icon-button grid lg:hidden"

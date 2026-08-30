@@ -29,7 +29,7 @@ function DropdownMenuContent({
   alignOffset = 0,
   side = "bottom",
   sideOffset = 4,
-  className,
+  className = "",
   ...props
 }) {
   return (
@@ -59,7 +59,7 @@ function DropdownMenuGroup({
 }
 
 function DropdownMenuLabel({
-  className,
+  className = "",
   inset = false,
   ...props
 }) {
@@ -76,7 +76,7 @@ function DropdownMenuLabel({
 }
 
 function DropdownMenuItem({
-  className,
+  className = "",
   inset = false,
   variant = "default",
   ...props
@@ -101,7 +101,7 @@ function DropdownMenuSub({
 }
 
 function DropdownMenuSubTrigger({
-  className,
+  className = "",
   inset = false,
   children,
   ...props
@@ -126,7 +126,7 @@ function DropdownMenuSubContent({
   alignOffset = -3,
   side = "right",
   sideOffset = 0,
-  className,
+  className = "",
   ...props
 }) {
   return (
@@ -145,7 +145,7 @@ function DropdownMenuSubContent({
 }
 
 function DropdownMenuCheckboxItem({
-  className,
+  className = "",
   children,
   checked,
   inset = false,
@@ -180,7 +180,7 @@ function DropdownMenuRadioGroup({
 }
 
 function DropdownMenuRadioItem({
-  className,
+  className = "",
   children,
   inset = false,
   ...props
@@ -207,7 +207,7 @@ function DropdownMenuRadioItem({
 }
 
 function DropdownMenuSeparator({
-  className,
+  className = "",
   ...props
 }) {
   return (
@@ -219,7 +219,7 @@ function DropdownMenuSeparator({
 }
 
 function DropdownMenuShortcut({
-  className,
+  className = "",
   ...props
 }) {
   return (
