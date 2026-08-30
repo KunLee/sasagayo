@@ -19,15 +19,9 @@ function DropdownMenuPortal({
 }
 
 function DropdownMenuTrigger({
-  className,
   ...props
 }) {
-  return (
-    <MenuPrimitive.Trigger
-      data-slot="dropdown-menu-trigger"
-      className={className}
-      {...props} />
-  );
+  return <MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />;
 }
 
 function DropdownMenuContent({
@@ -35,7 +29,7 @@ function DropdownMenuContent({
   alignOffset = 0,
   side = "bottom",
   sideOffset = 4,
-  className = "",
+  className,
   ...props
 }) {
   return (
@@ -65,7 +59,7 @@ function DropdownMenuGroup({
 }
 
 function DropdownMenuLabel({
-  className = "",
+  className,
   inset,
   ...props
 }) {
@@ -82,7 +76,7 @@ function DropdownMenuLabel({
 }
 
 function DropdownMenuItem({
-  className = "",
+  className,
   inset,
   variant = "default",
   ...props
@@ -107,7 +101,7 @@ function DropdownMenuSub({
 }
 
 function DropdownMenuSubTrigger({
-  className = "",
+  className,
   inset,
   children,
   ...props
@@ -132,7 +126,7 @@ function DropdownMenuSubContent({
   alignOffset = -3,
   side = "right",
   sideOffset = 0,
-  className = "",
+  className,
   ...props
 }) {
   return (
@@ -151,7 +145,7 @@ function DropdownMenuSubContent({
 }
 
 function DropdownMenuCheckboxItem({
-  className = "",
+  className,
   children,
   checked,
   inset,
@@ -186,7 +180,7 @@ function DropdownMenuRadioGroup({
 }
 
 function DropdownMenuRadioItem({
-  className = "",
+  className,
   children,
   inset,
   ...props
@@ -213,7 +207,7 @@ function DropdownMenuRadioItem({
 }
 
 function DropdownMenuSeparator({
-  className = "",
+  className,
   ...props
 }) {
   return (
@@ -225,7 +219,7 @@ function DropdownMenuSeparator({
 }
 
 function DropdownMenuShortcut({
-  className = "",
+  className,
   ...props
 }) {
   return (

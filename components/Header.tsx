@@ -2,16 +2,18 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, Compass, Menu, PenLine, ShieldCheck, UserRound, X } from "lucide-react";
+import { Bell, Compass, Menu, PenLine, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
 import {
   DropdownMenu,
+  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import SearchPalette from "@/components/SearchPalette";
+import AdminNavLink from "@/components/AdminNavLink";
 const navigation = [
   { label: "Discover", href: "/discover", match: "/discover" },
   { label: "Stories", href: "/stories", match: "/stories" },
@@ -96,6 +98,7 @@ export default function Header() {
         </nav>
         <SearchPalette />
         <div className="flex items-center gap-2">
+          <AdminNavLink />
           <Link
             href="/activity"
             className="icon-button hidden sm:grid"
@@ -112,8 +115,8 @@ export default function Header() {
           </Link>
           <DropdownMenu>
             <DropdownMenuTrigger
-              aria-label="Account menu"
-              className="grid rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#a74735]/40"
+              aria-label="Your account"
+              className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#a74735]/40"
             >
               <Avatar className="ring-2 ring-white" size="default">
                 <AvatarFallback className="bg-[#d8b36e] text-[10px] font-bold text-[#342824]">
@@ -122,26 +125,30 @@ export default function Header() {
                 <AvatarBadge className="bg-emerald-500" />
               </Avatar>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-52">
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-stone-500" inset={false}>
+                Your account
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="my-1" />
               <DropdownMenuItem
-                className="gap-2"
+                className="cursor-pointer"
+                inset={false}
                 onClick={() => router.push("/settings/profile")}
               >
-                <UserRound className="size-4 text-stone-500" />
                 Update Profile Details
               </DropdownMenuItem>
               {isAdmin && (
                 <DropdownMenuItem
-                  className="gap-2"
+                  className="cursor-pointer"
+                  inset={false}
                   onClick={() => router.push("/admin")}
                 >
-                  <ShieldCheck className="size-4 text-[var(--theme-accent)]" />
                   Admin Page
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator />
               <DropdownMenuItem
-                className="gap-2"
+                className="cursor-pointer"
+                inset={false}
                 onClick={() => router.push("/account")}
               >
                 Manage Profile
