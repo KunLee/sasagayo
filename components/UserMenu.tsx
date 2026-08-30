@@ -13,10 +13,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+function initialsFromEmail(email?: string | null) {
+  if (!email) return "YO";
+  const local = email.split("@")[0] ?? "";
+  const parts = local.split(/[._-]+/).filter(Boolean);
+  if (parts.length === 0) return "YO";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
 export default function UserMenu() {
   const router = useRouter();
   const [signedIn, setSignedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [initials, setInitials] = useState("YO");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -24,6 +34,7 @@ export default function UserMenu() {
       .then((response) => response.json())
       .then((session) => {
         setSignedIn(Boolean(session.user));
+        setInitials(initialsFromEmail(session.user?.email));
         if (session.user) {
           fetch("/api/admin", {
             cache: "no-store",
@@ -47,7 +58,7 @@ export default function UserMenu() {
       >
         <Avatar className="ring-2 ring-white" size="default">
           <AvatarFallback className="bg-[#d8b36e] text-[10px] font-bold text-[#342824]">
-            YO
+            {initials}
           </AvatarFallback>
           {signedIn && <AvatarBadge className="bg-emerald-500" />}
         </Avatar>
@@ -57,7 +68,7 @@ export default function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
           <UserRound className="size-4" />
-          Profile details
+          Update Profile
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
           <Settings className="size-4" />
@@ -66,7 +77,7 @@ export default function UserMenu() {
         {isAdmin && (
           <DropdownMenuItem onClick={() => router.push("/admin")}>
             <ShieldCheck className="size-4" />
-            Admin page
+            Admin
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />

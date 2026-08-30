@@ -23,8 +23,6 @@ export default function Header() {
   // effect after mount — not a ref read during render, which the lint rule
   // react-hooks/refs (and React itself) disallow.
   const [settled, setSettled] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     const frame = requestAnimationFrame(() => setSettled(true));
     return () => cancelAnimationFrame(frame);
@@ -32,33 +30,6 @@ export default function Header() {
   useEffect(() => {
     navigation.forEach((item) => router.prefetch(item.href));
   }, [router]);
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/auth", { cache: "no-store", signal: controller.signal })
-      .then((response) => response.json())
-      .then((session) => {
-        setSignedIn(Boolean(session.user));
-        if (!session.user) return null;
-        return fetch("/api/admin", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-      })
-      .then((response) => setIsAdmin(Boolean(response?.ok)))
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, []);
-  async function logout() {
-    await fetch("/api/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "logout" }),
-    });
-    setSignedIn(false);
-    setIsAdmin(false);
-    router.push("/account");
-    router.refresh();
-  }
   const found = navigation.findIndex((item) => pathname.startsWith(item.match));
   const activeIndex = Math.max(0, found);
   return (
