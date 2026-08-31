@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -64,27 +65,33 @@ export default function UserMenu() {
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Your account</DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Your account</DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
-          <UserRound className="size-4" />
-          Update Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
-          <Settings className="size-4" />
-          Manage profile
-        </DropdownMenuItem>
-        {isAdmin && (
-          <DropdownMenuItem onClick={() => router.push("/admin")}>
-            <ShieldCheck className="size-4" />
-            Admin
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
+            <UserRound className="size-4" />
+            Update Profile
           </DropdownMenuItem>
-        )}
+          <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
+            <Settings className="size-4" />
+            Manage profile
+          </DropdownMenuItem>
+          {isAdmin && (
+            <DropdownMenuItem onClick={() => router.push("/admin")}>
+              <ShieldCheck className="size-4" />
+              Admin
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push("/account")}>
-          <Wallet className="size-4" />
-          Account
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => router.push("/account")}>
+            <Wallet className="size-4" />
+            Account
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
