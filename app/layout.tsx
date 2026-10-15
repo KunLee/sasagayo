@@ -1,41 +1,40 @@
-import Header from "../components/Header";
-import Footer from "../components/Footer";
-import "./globals.css";
+import type { Metadata, Viewport } from "next";
+import { Cormorant_Garamond, Inter } from "next/font/google";
 import type { ReactNode } from "react";
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
-import PresenceTracker from "@/components/PresenceTracker";
-import NavigationProgress from "@/components/NavigationProgress";
+import Footer from "@/components/Footer";
+import Header from "@/components/Header";
+import PlayerProvider from "@/components/player/PlayerProvider";
+import { SITE_URL } from "@/lib/format";
+import "./globals.css";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
-// Active site theme. See app/globals.css for the full 'Ember' token set
-// (backgrounds, ink, invert surfaces, accent + hover/focus states), the
-// original warm palette this site shipped with.
-const DEFAULT_THEME = "ember";
+const serif = Cormorant_Garamond({ subsets: ["latin", "latin-ext"], weight: ["400", "500", "600"], style: ["normal", "italic"], variable: "--font-cormorant" });
+const sans = Inter({ subsets: ["latin", "latin-ext"], variable: "--font-inter" });
 
-export const metadata = {
-  title: { default: "Sasagayo — Music, remembered", template: "%s | Sasagayo" },
-  description:
-    "A community for sharing the songs, stories, and recommendations that move us.",
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: { default: "Sasagayo — Open classical music", template: "%s · Sasagayo" },
+  description: "A growing library of great classical recordings in the public domain or under open licences. Listen, save, and share — free.",
+  openGraph: { siteName: "Sasagayo", type: "website" },
+  twitter: { card: "summary_large_image" },
+  manifest: "/site.webmanifest",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: ReactNode }>) {
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f2e8" },
+    { media: "(prefers-color-scheme: dark)", color: "#13110f" },
+  ],
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html
-      lang="en"
-      data-theme={DEFAULT_THEME}
-      className={cn("font-sans", geist.variable)}
-    >
+    <html lang="en" className={`${serif.variable} ${sans.variable}`}>
       <body>
-        <div className="site">
-          <PresenceTracker />
-          <NavigationProgress />
+        <PlayerProvider>
           <Header />
           <main>{children}</main>
           <Footer />
-        </div>
+        </PlayerProvider>
       </body>
     </html>
   );

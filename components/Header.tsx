@@ -1,139 +1,66 @@
 "use client";
+
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Bell, Compass, Menu, PenLine, X } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
-import SearchPalette from "@/components/SearchPalette";
-import AdminNavLink from "@/components/AdminNavLink";
-const navigation = [
-  { label: "Discover", href: "/discover", match: "/discover" },
-  { label: "Stories", href: "/stories", match: "/stories" },
-  { label: "Circles", href: "/circles", match: "/circles" },
-] as const;
+import { usePathname } from "next/navigation";
+import { Heart } from "lucide-react";
+import SearchBox from "@/components/SearchBox";
+import { useLibrary } from "@/lib/library-store";
+
+const NAV = [
+  { href: "/", label: "Listen" },
+  { href: "/composers", label: "Composers" },
+  { href: "/about", label: "About" },
+];
+
 export default function Header() {
   const pathname = usePathname();
-  const router = useRouter();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  // Tracks whether the nav-slider indicator has completed its first paint.
-  // On the very first render the indicator must snap straight to the active
-  // tab's position with no transition; animating in from its default (first
-  // tab) position on initial page load is what produced the rendering
-  // glitch in the 3-button group. This is plain React state set from an
-  // effect after mount — not a ref read during render, which the lint rule
-  // react-hooks/refs (and React itself) disallow.
-  const [settled, setSettled] = useState(false);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setSettled(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  useEffect(() => {
-    navigation.forEach((item) => router.prefetch(item.href));
-  }, [router]);
-  const found = navigation.findIndex((item) => pathname.startsWith(item.match));
-  const activeIndex = Math.max(0, found);
+  const library = useLibrary();
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
   return (
-    <header className="sticky top-0 z-50 border-b border-stone-900/8 bg-[#f7f4ee]/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-18 max-w-[1400px] items-center gap-6 px-5 sm:px-8">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5"
-          aria-label="Sasagayo home"
-        >
-          <span className="grid size-8 place-items-center rounded-full bg-[#2b2025] font-serif text-lg italic text-white">
-            S
-          </span>
-          <span className="font-serif text-[22px] tracking-[-.03em]">
-            sasagayo
-          </span>
+    <header className="sticky top-0 z-40 border-b border-line bg-paper/85 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:gap-6 sm:px-6">
+        <Link href="/" className="flex shrink-0 items-baseline gap-2" aria-label="Sasagayo home">
+          <span className="font-serif text-[1.65rem] font-semibold italic leading-none tracking-tight">Sasagayo</span>
+          <span className="hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-gold md:inline">Open classical</span>
         </Link>
-        <nav className="nav-slider hidden lg:grid" aria-label="Main navigation">
-          <span
-            className="nav-slider__indicator"
-            style={{
-              transform: `translateX(${activeIndex * 100}%)`,
-              opacity: found < 0 ? 0 : 1,
-              transition: settled ? undefined : "none",
-            }}
-            aria-hidden="true"
-          />
-          {navigation.map((item, index) => (
+        <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
+          {NAV.map((item) => (
             <Link
               key={item.href}
-              className={`nav-slider__item ${activeIndex === index && found >= 0 ? "is-active" : ""}`}
               href={item.href}
-              prefetch={true}
+              aria-current={isActive(item.href) ? "page" : undefined}
+              className={`rounded-full px-3 py-1.5 text-sm transition ${isActive(item.href) ? "bg-ink text-paper" : "text-ink-2 hover:bg-paper-2"}`}
             >
-              {index === 0 && <Compass className="size-3.5" />}
               {item.label}
             </Link>
           ))}
         </nav>
-        <SearchPalette />
-        <div className="flex items-center gap-2">
-          <AdminNavLink />
-          <Link
-            href="/activity"
-            className="icon-button hidden sm:grid"
-            aria-label="Activity"
-          >
-            <Bell className="size-4" />
-          </Link>
-          <Link
-            href="/compose"
-            className="hidden h-10 items-center gap-2 rounded-full bg-[#a74735] px-4 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#923a2b] sm:flex"
-          >
-            <PenLine className="size-4" />
-            Share
-          </Link>
-          <Link href="/account" aria-label="Your account">
-            <Avatar className="ring-2 ring-white" size="default">
-              <AvatarFallback className="bg-[#d8b36e] text-[10px] font-bold text-[#342824]">
-                YO
-              </AvatarFallback>
-              <AvatarBadge className="bg-emerald-500" />
-            </Avatar>
-          </Link>
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="icon-button grid lg:hidden"
-            aria-label={mobileOpen ? "Close menu" : "Open menu"}
-          >
-            {mobileOpen ? (
-              <X className="size-4" />
-            ) : (
-              <Menu className="size-4" />
-            )}
-          </button>
+        <div className={`ml-auto w-full max-w-xs ${pathname === "/" ? "hidden lg:block" : "hidden sm:block"}`}>
+          <SearchBox />
         </div>
-      </div>
-      {mobileOpen && (
-        <nav
-          className="border-t border-stone-900/8 bg-[#f7f4ee] px-5 py-4 lg:hidden"
-          aria-label="Mobile navigation"
+        <Link
+          href="/library"
+          aria-current={isActive("/library") ? "page" : undefined}
+          className={`relative ml-auto flex h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm transition sm:ml-0 ${isActive("/library") ? "border-accent bg-accent text-accent-ink" : "border-line hover:border-accent hover:text-accent"}`}
         >
-          <div className="mx-auto grid max-w-[1400px] gap-1">
-            {navigation.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch={true}
-                onClick={() => setMobileOpen(false)}
-                className="rounded-xl px-4 py-3 text-sm font-semibold hover:bg-white"
-              >
-                {item.label}
-              </Link>
-            ))}
-            <Link
-              href="/compose"
-              onClick={() => setMobileOpen(false)}
-              className="mt-2 rounded-xl bg-[#a74735] px-4 py-3 text-sm font-semibold text-white"
-            >
-              Share a story
-            </Link>
-          </div>
-        </nav>
-      )}
+          <Heart className="size-4" fill={library.tracks.length ? "currentColor" : "none"} />
+          <span className="hidden sm:inline">My library</span>
+          {library.tracks.length > 0 && <span className="text-xs tabular-nums opacity-80">{library.tracks.length}</span>}
+        </Link>
+      </div>
+      {/* Phone navigation: a scrollable strip under the bar. */}
+      <nav aria-label="Main (mobile)" className="scrollbar-none flex gap-1 overflow-x-auto border-t border-line px-4 py-2 md:hidden">
+        {[...NAV, { href: "/search", label: "Search" }].map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`shrink-0 rounded-full px-3 py-1 text-sm ${isActive(item.href) ? "bg-ink text-paper" : "text-ink-2"}`}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
     </header>
   );
 }

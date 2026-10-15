@@ -1,204 +1,103 @@
+import { revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  authenticateRequest,
-  getSupabaseConfig,
-  setSessionCookies,
-} from "@/lib/server/supabase-session";
+import { runDiscovery } from "@/lib/discovery/run";
+import { queryTokens } from "@/lib/search-tokens";
+import { dbConfig, inList, serviceFetch, serviceJson } from "@/lib/server/db";
+import { authenticateRequest, setSessionCookies } from "@/lib/server/supabase-session";
 
-function reply(
-  body: unknown,
-  status: number,
-  refreshed?: Parameters<typeof setSessionCookies>[1] | null,
-) {
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 120;
+
+const ADMIN_FIELDS = "id,title,composer_slug,composer_name,performer,duration_seconds,stream_url,source_page_url,license_name,quality_score,quality_notes,status,discovered_at,play_count";
+const STATUSES = ["published", "review", "rejected", "hidden"] as const;
+
+async function requireAdmin(request: NextRequest) {
+  const auth = await authenticateRequest(request);
+  if (!auth) return { error: NextResponse.json({ error: "Please sign in." }, { status: 401 }) };
+  const { url, publishableKey } = dbConfig();
+  const check = await fetch(`${url}/rest/v1/rpc/is_admin`, {
+    method: "POST",
+    headers: { apikey: publishableKey, Authorization: `Bearer ${auth.accessToken}`, "Content-Type": "application/json" },
+    body: "{}",
+    cache: "no-store",
+  });
+  const isAdmin = check.ok && (await check.json()) === true;
+  if (!isAdmin) return { error: NextResponse.json({ error: "This account is not an administrator." }, { status: 403 }) };
+  return { auth };
+}
+
+function reply(body: unknown, refreshed: Parameters<typeof setSessionCookies>[1] | null, status = 200) {
   const response = NextResponse.json(body, { status });
   if (refreshed) setSessionCookies(response, refreshed);
   return response;
 }
 
-async function rpc(name: string, token: string, body: unknown = {}) {
-  const { url, publishableKey } = getSupabaseConfig();
-  return fetch(`${url}/rest/v1/rpc/${name}`, {
-    method: "POST",
-    headers: {
-      apikey: publishableKey,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-}
-
-async function requireAdmin(request: NextRequest) {
-  const auth = await authenticateRequest(request);
-  if (!auth)
-    return {
-      error: reply({ error: "Authentication required." }, 401),
-    } as const;
-  const check = await rpc("admin_overview", auth.accessToken);
-  if (!check.ok)
-    return {
-      error: reply(
-        { error: "Administrator access required." },
-        403,
-        auth.refreshedSession,
-      ),
-    } as const;
-  return { auth, overview: await check.json() } as const;
+async function countByStatus() {
+  const entries = await Promise.all(STATUSES.map(async (status) => {
+    const response = await serviceFetch(`tracks?select=id&status=eq.${status}&limit=1`, { headers: { Prefer: "count=exact" } });
+    return [status, Number(response.headers.get("content-range")?.split("/")[1] ?? 0)] as const;
+  }));
+  return Object.fromEntries(entries);
 }
 
 export async function GET(request: NextRequest) {
+  const checked = await requireAdmin(request);
+  if ("error" in checked) return checked.error;
+  const refreshed = checked.auth.refreshedSession;
   try {
-    const checked = await requireAdmin(request);
-    if ("error" in checked) return checked.error;
-    const view = request.nextUrl.searchParams.get("view") ?? "overview";
-    const q = request.nextUrl.searchParams.get("q")?.slice(0, 80) ?? "";
-    const status =
-      request.nextUrl.searchParams.get("status")?.slice(0, 24) ?? "";
-    const map: Record<string, [string, object]> = {
-      users: ["admin_users", { p_search: q, p_limit: 100 }],
-      activity: ["admin_activity", { p_limit: 100 }],
-      reports: ["admin_reports", {}],
-      sources: [
-        "admin_music_candidates",
-        { p_search: q, p_status: status, p_limit: 300 },
-      ],
-      audit: ["admin_audit", { p_limit: 100 }],
-    };
-    if (view === "overview")
-      return reply(
-        { overview: checked.overview },
-        200,
-        checked.auth.refreshedSession,
-      );
-    if (!map[view])
-      return reply(
-        { error: "Unknown admin view." },
-        400,
-        checked.auth.refreshedSession,
-      );
-    const result = await rpc(
-      map[view][0],
-      checked.auth.accessToken,
-      map[view][1],
-    );
-    return result.ok
-      ? reply(
-          { items: await result.json() },
-          200,
-          checked.auth.refreshedSession,
-        )
-      : reply(
-          { error: "Admin data unavailable." },
-          502,
-          checked.auth.refreshedSession,
-        );
+    const params = request.nextUrl.searchParams;
+    const status = STATUSES.find((value) => value === params.get("status")) ?? "review";
+    const tokens = queryTokens(params.get("q") ?? "");
+    const filters = [`status=eq.${status}`];
+    if (tokens.length) filters.push(`and=(${tokens.map((token) => `search_text.ilike.*${token}*`).join(",")})`);
+    const order = status === "review" ? "quality_score.desc,discovered_at.desc" : "discovered_at.desc";
+    const [counts, tracks, runs, feeds] = await Promise.all([
+      countByStatus(),
+      serviceJson(`tracks?select=${ADMIN_FIELDS}&${filters.join("&")}&order=${order}&limit=60`),
+      serviceJson("discovery_runs?select=*&order=started_at.desc&limit=12"),
+      serviceJson<{ feed: string; total_hits: number | null; next_offset: number; last_crawled_at: string | null }[]>("discovery_state?select=*"),
+    ]);
+    const crawled = feeds.filter((feed) => feed.last_crawled_at).length;
+    return reply({ counts, tracks, runs, feeds: { crawled, known: feeds.length } }, refreshed);
   } catch (error) {
     console.error("Admin read failed", error);
-    return reply({ error: "Administration service unavailable." }, 503);
+    return reply({ error: error instanceof Error ? error.message : "Admin data unavailable." }, refreshed, 502);
   }
 }
 
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (origin && origin !== request.nextUrl.origin) return NextResponse.json({ error: "Invalid origin." }, { status: 403 });
+  const checked = await requireAdmin(request);
+  if ("error" in checked) return checked.error;
+  const refreshed = checked.auth.refreshedSession;
   try {
-    const origin = request.headers.get("origin");
-    if (origin && origin !== request.nextUrl.origin)
-      return reply({ error: "Invalid request origin." }, 403);
-    const checked = await requireAdmin(request);
-    if ("error" in checked) return checked.error;
-    const body = (await request.json()) as {
-      action?: string;
-      userId?: string;
-      role?: string;
-      status?: string;
-      points?: number;
-      reportId?: string;
-      candidateId?: string;
-      trackId?: string;
-      publicationStatus?: string;
-      source?: string;
-      sourcePageUrl?: string;
-      title?: string;
-      artistName?: string;
-      detectedLicense?: string;
-      licenseUrl?: string;
-      rightsEvidence?: string;
-      decision?: string;
-      reason?: string;
-    };
-    const reason = body.reason?.trim() ?? "";
-    const calls: Record<string, [string, object]> = {
-      "set-role": [
-        "admin_set_role",
-        { p_user_id: body.userId, p_role: body.role, p_reason: reason },
-      ],
-      "set-status": [
-        "admin_set_account_status",
-        { p_user_id: body.userId, p_status: body.status, p_reason: reason },
-      ],
-      "adjust-reputation": [
-        "admin_adjust_reputation",
-        { p_user_id: body.userId, p_points: body.points, p_reason: reason },
-      ],
-      "resolve-report": [
-        "admin_resolve_report",
-        { p_report_id: body.reportId, p_status: body.status, p_reason: reason },
-      ],
-      "add-music-candidate": [
-        "admin_add_music_candidate",
-        {
-          p_source: body.source,
-          p_source_page_url: body.sourcePageUrl,
-          p_title: body.title,
-          p_artist_name: body.artistName,
-          p_detected_license: body.detectedLicense,
-          p_license_url: body.licenseUrl,
-          p_rights_evidence: body.rightsEvidence,
-        },
-      ],
-      "review-music-candidate": [
-        "admin_review_music_candidate",
-        {
-          p_candidate_id: body.candidateId,
-          p_decision: body.decision,
-          p_notes: reason,
-        },
-      ],
-      "retry-music-candidate": [
-        "admin_retry_music_candidate",
-        { p_candidate_id: body.candidateId, p_reason: reason },
-      ],
-      "set-catalog-publication": [
-        "admin_set_catalog_publication",
-        {
-          p_track_id: body.trackId,
-          p_status: body.publicationStatus,
-          p_reason: reason,
-        },
-      ],
-    };
-    if (!body.action || !calls[body.action])
-      return reply(
-        { error: "Unknown admin action." },
-        400,
-        checked.auth.refreshedSession,
-      );
-    const result = await rpc(
-      calls[body.action][0],
-      checked.auth.accessToken,
-      calls[body.action][1],
-    );
-    if (!result.ok) {
-      const details = await result.json().catch(() => ({}));
-      return reply(
-        { error: details.message ?? "Administrative action failed." },
-        400,
-        checked.auth.refreshedSession,
-      );
+    const body = (await request.json()) as { action?: string; ids?: string[]; status?: string };
+    if (body.action === "set-status") {
+      const status = STATUSES.find((value) => value === body.status);
+      const ids = (body.ids ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 200);
+      if (!status || !ids.length) return reply({ error: "Choose tracks and a status." }, refreshed, 400);
+      await serviceJson(`tracks?id=in.${encodeURIComponent(inList(ids))}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({
+          status,
+          updated_at: new Date().toISOString(),
+          ...(status === "published" ? { published_at: new Date().toISOString() } : {}),
+        }),
+      });
+      revalidateTag("tracks", "max");
+      return reply({ ok: true }, refreshed);
     }
-    return reply({ success: true }, 200, checked.auth.refreshedSession);
+    if (body.action === "run-discovery") {
+      const summary = await runDiscovery({ trigger: "admin", budgetMs: 90_000 });
+      revalidateTag("tracks", "max");
+      return reply({ ok: true, summary }, refreshed);
+    }
+    return reply({ error: "Unknown action." }, refreshed, 400);
   } catch (error) {
     console.error("Admin action failed", error);
-    return reply({ error: "Administration service unavailable." }, 503);
+    return reply({ error: error instanceof Error ? error.message : "Action failed." }, refreshed, 502);
   }
 }

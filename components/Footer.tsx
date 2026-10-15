@@ -1,69 +1,28 @@
 import Link from "next/link";
-import { ArrowUpRight, Music2 } from "lucide-react";
-const groups = [
-  {
-    title: "Explore",
-    links: [
-      ["Discover", "/discover"],
-      ["Stories", "/stories"],
-      ["Open classical catalog", "/catalog"],
-      ["Community pulse", "/insights"],
-      ["Listening circles", "/circles"],
-      ["Search", "/search"],
-    ],
-  },
-  {
-    title: "Create",
-    links: [
-      ["Share a story", "/compose"],
-      ["Your studio", "/studio"],
-      ["Your reputation", "/reputation"],
-      ["Your account", "/account"],
-      ["Contact", "/contact"],
-    ],
-  },
-];
+
 export default function Footer() {
   return (
-    <footer className="border-t border-white/8 bg-[#21191d] text-stone-300">
-      <div className="mx-auto grid max-w-[1400px] gap-10 px-6 py-14 sm:px-8 lg:grid-cols-[1.3fr_.7fr_.7fr]">
+    <footer className="mt-24 border-t border-line">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 text-sm text-muted sm:grid-cols-[1.4fr_1fr_1fr] sm:px-6">
         <div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-3 font-serif text-2xl text-white"
-          >
-            <span className="grid size-9 place-items-center rounded-full bg-[#a74735]">
-              <Music2 className="size-4" />
-            </span>
-            Sasagayo
-          </Link>
-          <p className="mt-4 max-w-sm text-sm leading-6 text-stone-400">
-            A thoughtful corner of the internet for the music we love and the
-            stories we carry.
+          <p className="font-serif text-2xl font-semibold italic text-ink">Sasagayo</p>
+          <p className="mt-3 max-w-sm leading-6">
+            Great classical recordings that anyone may hear, keep, and share — gathered every day from public archives,
+            each one credited and licensed.
           </p>
-          <Link
-            href="/compose"
-            className="mt-6 inline-flex items-center gap-2 border-b border-stone-600 pb-1 text-sm text-white"
-          >
-            Share what you&apos;re hearing <ArrowUpRight className="size-3" />
-          </Link>
         </div>
-        {groups.map((group) => (
-          <div key={group.title}>
-            <p className="micro-label text-[#cf846f]">{group.title}</p>
-            <div className="mt-4 grid gap-2 text-sm">
-              {group.links.map(([label, href]) => (
-                <Link key={href} href={href} className="hover:text-white">
-                  {label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="mx-auto flex max-w-[1400px] flex-wrap justify-between gap-4 border-t border-white/8 px-6 py-5 text-[10px] uppercase tracking-[.16em] text-stone-500 sm:px-8">
-        <span>© 2026 Sasagayo</span>
-        <span>Made for curious ears · privacy by design</span>
+        <div className="grid content-start gap-2">
+          <p className="eyebrow">Explore</p>
+          <Link href="/composers" className="hover:text-ink">Composers</Link>
+          <Link href="/search" className="hover:text-ink">Search</Link>
+          <Link href="/library" className="hover:text-ink">My library</Link>
+        </div>
+        <div className="grid content-start gap-2">
+          <p className="eyebrow">Sources</p>
+          <a href="https://commons.wikimedia.org/wiki/Category:Audio_files_of_classical_music" target="_blank" rel="noreferrer" className="hover:text-ink">Wikimedia Commons</a>
+          <a href="https://musopen.org" target="_blank" rel="noreferrer" className="hover:text-ink">Musopen</a>
+          <Link href="/about" className="hover:text-ink">Licences & contact</Link>
+        </div>
       </div>
     </footer>
   );

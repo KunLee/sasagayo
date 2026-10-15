@@ -1,16 +1,133 @@
 import Link from "next/link";
-import { ArrowRight, Headphones, Music2, Radio, Sparkles, Users } from "lucide-react";
-import ArtistCarousel from "@/components/ArtistCarousel";
-import RecommendationGrid from "@/components/RecommendationGrid";
-import StoryCard from "@/components/StoryCard";
-import { circles, stories } from "@/lib/community";
+import { ArrowRight } from "lucide-react";
+import ComposerCard from "@/components/ComposerCard";
+import SearchBox from "@/components/SearchBox";
+import TrackList, { PlayAllButton } from "@/components/TrackList";
+import { composerCounts, dailyProgramme, latestTracks, libraryStats, type Track } from "@/lib/catalog";
+import { composerPortraits } from "@/lib/composer-info";
+import { COMPOSERS, ERAS } from "@/lib/composers";
 
-export default function HomePage(){return <>
- <section className="relative overflow-hidden border-b border-stone-900/8"><div className="hero-glow"/><div className="relative mx-auto grid min-h-[650px] max-w-[1400px] items-center gap-12 px-6 py-16 sm:px-8 lg:grid-cols-[1.08fr_.92fr] lg:py-20"><div className="max-w-2xl"><p className="micro-label text-[#a74735]"><Sparkles className="mr-2 inline size-3"/>Made for curious ears</p><h1 className="mt-7 font-serif text-[clamp(4rem,7vw,7.4rem)] leading-[.86] tracking-[-.055em] text-[#251d21]">Find the music<br/>that inspires <em className="font-normal text-[#a74735]">you.</em></h1><p className="mt-7 max-w-xl text-base leading-7 text-stone-600 sm:text-lg">Music discovery through human stories. Share what moves you, hear why it matters, and follow your curiosity somewhere unexpected.</p><div className="mt-9 flex flex-wrap gap-3"><Link href="/discover" className="inline-flex h-12 items-center gap-8 rounded-full bg-[#2b2025] px-6 text-xs font-semibold text-white shadow-xl shadow-[#2b2025]/10 transition hover:-translate-y-0.5 hover:bg-[#a74735]">Start exploring <ArrowRight className="size-4"/></Link><Link href="/circles" className="inline-flex h-12 items-center gap-2 rounded-full border border-stone-900/12 bg-white/50 px-5 text-xs font-semibold hover:bg-white"><Users className="size-4"/>Find your circle</Link></div><div className="mt-12 flex flex-wrap items-center gap-7 text-[10px] uppercase tracking-[.13em] text-stone-400"><span><strong className="mr-1 font-serif text-xl normal-case tracking-normal text-stone-800">Stories</strong> with context</span><span><strong className="mr-1 font-serif text-xl normal-case tracking-normal text-stone-800">Circles</strong> with care</span><span><strong className="mr-1 font-serif text-xl normal-case tracking-normal text-stone-800">Files</strong> you control</span></div></div>
- <div className="relative mx-auto aspect-square w-full max-w-[530px]"><div className="absolute inset-[5%] rounded-full border border-[#2b2025]/8"/><div className="absolute inset-[17%] rounded-full border border-[#2b2025]/8"/><div className="absolute left-1/2 top-1/2 aspect-square w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#292225] shadow-2xl shadow-[#2b2025]/30"><div className="absolute inset-[7%] rounded-full border border-white/8"/><div className="absolute inset-[20%] rounded-full border border-white/8"/><div className="absolute inset-[34%] rounded-full bg-[#a74735]"><div className="absolute inset-[38%] rounded-full bg-[#f3d7a2]"/></div><span className="absolute left-1/2 top-[12%] -translate-x-1/2 text-[8px] uppercase tracking-[.25em] text-stone-400">Sasagayo sessions</span></div><Link href={`/stories/${stories[0].slug}`} className="absolute -left-2 top-[7%] w-56 rotate-[-4deg] rounded-2xl bg-white/92 p-5 shadow-xl backdrop-blur transition hover:rotate-0"><p className="micro-label text-[#a74735]">Story of the day</p><p className="mt-3 font-serif text-xl leading-5">“It sounds like a window opening.”</p><p className="mt-4 text-[9px] uppercase tracking-wider text-stone-400">— Amara, Nairobi</p></Link><Link href="/discover" className="absolute -right-2 bottom-[10%] flex w-60 rotate-[3deg] items-center gap-3 rounded-2xl bg-[#eee5d8]/95 p-4 shadow-xl transition hover:rotate-0"><span className="grid size-11 place-items-center rounded-full bg-[#a74735] text-white"><Music2 className="size-4"/></span><div><p className="micro-label text-[#a74735]">Now discovering</p><p className="mt-1 font-serif text-lg">Orange Moon</p></div></Link></div></div></section>
- <ArtistCarousel/>
- <section className="mx-auto max-w-[1400px] px-6 py-20 sm:px-8 lg:py-28"><div className="mb-10 flex items-end justify-between"><div><p className="micro-label text-[#a74735]">Curated for today</p><h2 className="mt-3 font-serif text-5xl tracking-[-.03em]">Start with these.</h2></div><Link href="/discover" className="hidden items-center gap-2 text-xs font-semibold text-stone-500 sm:flex">View all picks <ArrowRight className="size-4"/></Link></div><RecommendationGrid limit={3}/></section>
- <section className="bg-[#2a2025] text-[#f7f1e8]"><div className="mx-auto grid max-w-[1400px] gap-12 px-6 py-20 sm:px-8 lg:grid-cols-[.55fr_1.45fr] lg:py-28"><div><p className="micro-label text-[#d48169]">Community stories</p><h2 className="mt-5 font-serif text-5xl leading-[.94] tracking-[-.04em] sm:text-6xl">The life<br/>inside the<br/><em className="font-normal text-[#d7826b]">music.</em></h2><p className="mt-6 max-w-sm text-sm leading-7 text-stone-400">Recommendations with context. Memories with a soundtrack. People telling the truth about what they hear.</p><Link href="/stories" className="mt-8 inline-flex items-center gap-7 rounded-full border border-white/15 px-5 py-3 text-xs font-semibold">Read all stories <ArrowRight className="size-4"/></Link></div><div className="grid gap-5 lg:grid-cols-2">{stories.slice(0,2).map(story=><div key={story.slug} className="text-[#251d21]"><StoryCard story={story}/></div>)}</div></div></section>
- <section className="mx-auto max-w-[1400px] px-6 py-20 sm:px-8 lg:py-28"><div className="grid gap-12 lg:grid-cols-[.7fr_1.3fr]"><div><p className="micro-label text-[#a74735]">Listening circles</p><h2 className="mt-4 max-w-md font-serif text-5xl leading-[.95] tracking-[-.035em]">Find people on your <em className="font-normal text-[#a74735]">frequency.</em></h2><p className="mt-6 max-w-md text-sm leading-7 text-stone-500">Small communities built around a feeling, a ritual, or a way of listening.</p><Link href="/circles" className="mt-8 inline-flex h-11 items-center gap-8 rounded-full border border-stone-900/12 px-5 text-xs font-semibold hover:bg-white">Explore all circles <ArrowRight className="size-4"/></Link></div><div className="grid gap-3">{circles.slice(0,4).map((circle,index)=><Link href={`/circles#${circle.slug}`} key={circle.slug} className="group flex items-center gap-4 rounded-2xl border border-stone-900/8 bg-white/55 p-5 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg"><div className="grid size-12 place-items-center rounded-2xl font-serif text-white" style={{backgroundColor:circle.accent}}>{circle.name.split(" ").map(word=>word[0]).slice(0,2).join("")}</div><div><h3 className="font-serif text-lg">{circle.name}</h3><p className="mt-1 text-[11px] text-stone-500">{circle.description}</p></div><span className="ml-auto hidden items-center gap-1.5 text-[10px] text-stone-400 sm:flex"><Users className="size-3.5"/>{circle.members}</span>{index<3&&<span className="hidden items-center gap-1.5 text-[10px] text-emerald-700 sm:flex"><Radio className="size-3.5"/>Live</span>}</Link>)}</div></div></section>
- <section className="mx-4 mb-4 overflow-hidden rounded-[32px] bg-[#a74735] text-[#fff8ee] sm:mx-6 sm:mb-6"><div className="mx-auto flex min-h-[380px] max-w-6xl flex-col items-center justify-center px-6 py-20 text-center"><Headphones className="size-7"/><p className="micro-label mt-6 text-[#f0baa9]">Your soundtrack belongs here</p><h2 className="mt-4 font-serif text-5xl leading-[.94] tracking-[-.04em] sm:text-7xl">What song are you<br/>carrying today?</h2><p className="mt-5 max-w-xl text-sm leading-6 text-[#f2c7ba]">Give it a story. Someone out there might need to hear both.</p><Link href="/compose" className="mt-8 inline-flex h-12 items-center gap-8 rounded-full bg-[#fff8ee] px-6 text-xs font-semibold text-[#2b2025] shadow-xl transition hover:-translate-y-0.5">Share a song <ArrowRight className="size-4"/></Link></div></section>
- </>}
+export const revalidate = 600;
+
+const SUGGESTIONS = ["Chopin nocturne", "Bach cello suite", "Moonlight sonata", "Mozart Requiem", "Debussy", "贝多芬 交响曲", "Vivaldi Four Seasons", "Schubert lieder"];
+
+async function safely<T>(load: () => Promise<T>, fallback: T) {
+  try {
+    return await load();
+  } catch (error) {
+    console.error("Home page data unavailable", error);
+    return fallback;
+  }
+}
+
+export default async function HomePage() {
+  const [stats, programme, latest, counts] = await Promise.all([
+    safely(libraryStats, { tracks: 0, hours: 0, composers: 0 }),
+    safely(() => dailyProgramme(8), [] as Track[]),
+    safely(() => latestTracks(10), [] as Track[]),
+    safely(composerCounts, new Map<string, { tracks: number; seconds: number }>()),
+  ]);
+  const featured = [...COMPOSERS]
+    .sort((a, b) => (counts.get(b.slug)?.tracks ?? 0) - (counts.get(a.slug)?.tracks ?? 0))
+    .slice(0, 12);
+  const portraits = await composerPortraits(featured);
+  const today = new Intl.DateTimeFormat("en-AU", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
+
+  return (
+    <>
+      <section className="paper-grain border-b border-line">
+        <div className="mx-auto max-w-6xl px-4 pb-16 pt-14 sm:px-6 sm:pb-24 sm:pt-24">
+          <p className="eyebrow">An open library of classical music</p>
+          <h1 className="display mt-5 max-w-4xl text-[clamp(3rem,8vw,6.5rem)]">
+            Great recordings,<br />
+            <em className="font-normal text-accent">free</em> to hear and share.
+          </h1>
+          <p className="mt-6 max-w-2xl text-base leading-7 text-ink-2 sm:text-lg">
+            Every day Sasagayo searches public archives for real performances of the great composers — checks the
+            licence, credits the performers, and adds the best to the shelves.
+          </p>
+          {stats.tracks > 0 && (
+            <dl className="mt-8 flex flex-wrap gap-x-10 gap-y-3">
+              {[[stats.tracks.toLocaleString("en"), "recordings"], [stats.hours.toLocaleString("en"), "hours of music"], [String(stats.composers), "composers"]].map(([value, label]) => (
+                <div key={label} className="flex items-baseline gap-2">
+                  <dt className="sr-only">{label}</dt>
+                  <dd className="font-serif text-4xl font-medium tabular-nums">{value}</dd>
+                  <span className="text-sm text-muted">{label}</span>
+                </div>
+              ))}
+            </dl>
+          )}
+          <div className="mt-10 max-w-2xl">
+            <SearchBox size="hero" />
+            <div className="mt-4 flex flex-wrap gap-2">
+              {SUGGESTIONS.map((term) => (
+                <Link key={term} href={`/search?q=${encodeURIComponent(term)}`} className="rounded-full border border-line bg-card/60 px-3 py-1.5 text-xs text-ink-2 transition hover:border-accent hover:text-accent">
+                  {term}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {programme.length > 0 ? (
+        <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-20">
+          <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+            <div>
+              <p className="eyebrow">Today&apos;s programme · {today}</p>
+              <h2 className="display mt-3 text-5xl">An evening concert</h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-muted">Eight pieces by eight composers, chosen from the finest recordings in the library. A new programme every day.</p>
+            </div>
+            <PlayAllButton tracks={programme} label="Play the programme" />
+          </div>
+          <div className="mt-8"><TrackList tracks={programme} /></div>
+        </section>
+      ) : (
+        <section className="mx-auto max-w-3xl px-4 pt-20 text-center sm:px-6">
+          <p className="ornament font-serif text-2xl">❦</p>
+          <h2 className="display mt-6 text-4xl">The shelves are being filled.</h2>
+          <p className="mt-4 text-sm leading-6 text-muted">The first recordings arrive with the next discovery run. Check back soon.</p>
+        </section>
+      )}
+
+      <section className="mx-auto max-w-6xl px-4 pt-24 sm:px-6">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow">The composers</p>
+            <h2 className="display mt-3 text-5xl">Who would you like to hear?</h2>
+          </div>
+          <Link href="/composers" className="hidden items-center gap-2 text-sm font-semibold text-accent sm:flex">All composers <ArrowRight className="size-4" /></Link>
+        </div>
+        <div className="mt-10 grid grid-cols-3 gap-x-4 gap-y-8 sm:grid-cols-4 lg:grid-cols-6">
+          {featured.map((composer) => (
+            <ComposerCard key={composer.slug} composer={composer} portrait={portraits.get(composer.slug) ?? null} tracks={counts.get(composer.slug)?.tracks} />
+          ))}
+        </div>
+        <Link href="/composers" className="mt-8 flex items-center justify-center gap-2 text-sm font-semibold text-accent sm:hidden">All composers <ArrowRight className="size-4" /></Link>
+      </section>
+
+      {latest.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 pt-24 sm:px-6">
+          <p className="eyebrow">Just added</p>
+          <h2 className="display mt-3 text-5xl">Fresh from the archives</h2>
+          <div className="mt-8"><TrackList tracks={latest} /></div>
+        </section>
+      )}
+
+      <section className="mx-auto max-w-6xl px-4 pt-24 sm:px-6">
+        <p className="eyebrow">Five centuries</p>
+        <h2 className="display mt-3 text-5xl">Browse by era</h2>
+        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {ERAS.map((era, position) => (
+            <Link key={era.name} href={`/composers#${era.name.toLowerCase().replace(/[^a-z]+/g, "-")}`} className="group flex min-h-48 flex-col rounded-2xl border border-line bg-card p-5 transition hover:-translate-y-1 hover:border-accent hover:shadow-lg">
+              <span className="font-serif text-sm italic text-gold">{["I", "II", "III", "IV", "V"][position]}</span>
+              <span className="mt-auto font-serif text-2xl leading-tight group-hover:text-accent">{era.name}</span>
+              <span className="mt-1 text-[11px] uppercase tracking-wider text-muted">{era.span}</span>
+              <span className="mt-3 text-xs leading-5 text-muted">{era.blurb}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}

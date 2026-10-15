@@ -1,901 +1,218 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import {
-  Activity,
-  BookOpen,
-  Check,
-  ChevronRight,
-  CircleGauge,
-  FileWarning,
-  LoaderCircle,
-  Music2,
-  Search,
-  ShieldCheck,
-  Users,
-  X,
-} from "lucide-react";
+import { ExternalLink, LoaderCircle, LogOut, Play, RefreshCw, Search } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { usePlayer } from "@/components/player/PlayerProvider";
+import { formatDuration } from "@/lib/format";
 
-type Overview = {
-  members: number;
-  activeMembers: number;
-  suspendedMembers: number;
-  admins: number;
-  openReports: number;
-  stories: number;
-  activeNow: number;
-  loginsToday: number;
-  activePaths: { path: string; visitors: number }[];
+type Status = "review" | "published" | "rejected" | "hidden";
+type AdminTrack = {
+  id: string; title: string; composer_slug: string; composer_name: string; performer: string | null;
+  duration_seconds: number; stream_url: string; source_page_url: string; license_name: string;
+  quality_score: number; quality_notes: string[]; status: Status; discovered_at: string; play_count: number;
 };
-type UserRow = {
-  id: string;
-  email: string;
-  handle: string;
-  display_name: string;
-  account_status: string;
-  reputation_points: number;
-  reputation_title: string;
-  role: string;
-  created_at: string;
-  last_sign_in_at: string | null;
-};
-type ActivityRow = {
-  id: number;
-  event_type: string;
-  email: string;
-  display_name: string;
-  created_at: string;
-};
-type ReportRow = {
-  id: string;
-  target_type: string;
-  target_id: string;
-  reason: string;
-  status: string;
-  reporter: string;
-  created_at: string;
-};
-type AuditRow = {
-  id: number;
-  actor: string;
-  action: string;
-  target_type: string;
-  target_id: string;
-  reason: string;
-  metadata: Record<string, unknown>;
-  created_at: string;
-};
-type SourceRow = {
-  id: string;
-  source: string;
-  source_page_url: string;
-  title: string;
-  artist_name: string;
-  detected_license: string;
-  license_url: string;
-  rights_evidence: string;
-  status: string;
-  discovered_at: string;
-  review_notes: string;
-  source_file_url: string;
-  last_seen_at: string;
-  mime_type: string;
-  size_bytes: number;
-  attempt_count: number;
-  last_error: string;
-  failure_class: string;
-  next_attempt_at: string | null;
-  catalog_track_id: string | null;
-  publication_status: "draft" | "published" | "unpublished" | null;
-};
-type Tab = "overview" | "users" | "activity" | "reports" | "sources" | "audit";
+type Run = { id: string; trigger: string; started_at: string; finished_at: string | null; feeds: string[]; examined: number; published: number; review: number; rejected: number; errors: { feed: string; error: string }[] };
+type Data = { counts: Record<Status, number>; tracks: AdminTrack[]; runs: Run[]; feeds: { crawled: number; known: number } };
 
-const tabs = [
-  { id: "overview", label: "Overview", icon: CircleGauge },
-  { id: "users", label: "Users", icon: Users },
-  { id: "activity", label: "Logins", icon: Activity },
-  { id: "reports", label: "Moderation", icon: FileWarning },
-  { id: "sources", label: "Discovery inbox", icon: Music2 },
-  { id: "audit", label: "Audit log", icon: BookOpen },
-] as const;
+const TABS: { status: Status; label: string }[] = [
+  { status: "review", label: "Waiting for review" },
+  { status: "published", label: "Published" },
+  { status: "rejected", label: "Rejected" },
+  { status: "hidden", label: "Hidden" },
+];
+const ACTIONS: Record<Status, { status: Status; label: string }[]> = {
+  review: [{ status: "published", label: "Publish" }, { status: "rejected", label: "Reject" }],
+  published: [{ status: "hidden", label: "Hide" }],
+  rejected: [{ status: "published", label: "Publish" }],
+  hidden: [{ status: "published", label: "Restore" }],
+};
 
 export default function AdminClient() {
-  const [tab, setTab] = useState<Tab>("overview");
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [items, setItems] = useState<unknown[]>([]);
-  const [state, setState] = useState<"loading" | "ready" | "denied" | "error">(
-    "loading",
-  );
+  const player = usePlayer();
+  const [state, setState] = useState<"loading" | "login" | "forbidden" | "ready" | "error">("loading");
+  const [data, setData] = useState<Data | null>(null);
+  const [tab, setTab] = useState<Status>("review");
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<UserRow | null>(null);
-  const [message, setMessage] = useState("");
-  const load = useCallback(
-    async (current: Tab = tab, q = query) => {
-      const suffix =
-        current === "overview"
-          ? ""
-          : `?view=${current}${current === "users" && q ? `&q=${encodeURIComponent(q)}` : ""}`;
-      const response = await fetch(`/api/admin${suffix}`, {
-        cache: "no-store",
-      });
-      if (response.status === 401 || response.status === 403)
-        return setState("denied");
-      if (!response.ok) return setState("error");
-      const data = await response.json();
-      if (current === "overview") setOverview(data.overview);
-      else setItems(data.items ?? []);
-      setState("ready");
-    },
-    [tab, query],
-  );
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  const load = useCallback(async (status: Status, q: string) => {
+    const response = await fetch(`/api/admin?status=${status}&q=${encodeURIComponent(q)}`, { cache: "no-store" });
+    if (response.status === 401) return setState("login");
+    if (response.status === 403) return setState("forbidden");
+    if (!response.ok) return setState("error");
+    setData(await response.json());
+    setSelected(new Set());
+    setState("ready");
+  }, []);
+
   useEffect(() => {
-    const timer = window.setTimeout(() => void load(tab, query), 0);
+    const timer = window.setTimeout(() => void load(tab, query), query ? 300 : 0);
     return () => window.clearTimeout(timer);
-  }, [tab, load, query]);
-  async function act(payload: Record<string, unknown>) {
-    setMessage("");
-    const response = await fetch("/api/admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await response.json();
-    setMessage(
-      response.ok
-        ? "Change saved and added to the audit log."
-        : (data.error ?? "Change failed."),
-    );
-    if (response.ok) {
-      setSelected(null);
-      load(tab, query);
+  }, [load, tab, query]);
+
+  async function act(body: Record<string, unknown>, success: string) {
+    setBusy(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Action failed.");
+      setNotice(typeof success === "string" && result.summary
+        ? `Discovery: ${result.summary.examined} files examined in ${result.summary.feeds.length} feeds — ${result.summary.published} published, ${result.summary.review} for review, ${result.summary.rejected} rejected.`
+        : success);
+      await load(tab, query);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Action failed.");
+    } finally {
+      setBusy(false);
     }
   }
-  if (state === "denied")
-    return (
-      <main className="mx-auto grid min-h-[70vh] max-w-xl place-items-center px-6 text-center">
-        <div>
-          <ShieldCheck className="mx-auto size-10 text-[#a74735]" />
-          <h1 className="mt-6 font-serif text-5xl">A private room.</h1>
-          <p className="mt-5 text-sm leading-7 text-stone-600">
-            This area requires an administrator role. Signing in alone does not
-            grant access.
-          </p>
-          <Link
-            href="/account"
-            className="mt-7 inline-flex h-11 items-center rounded-full bg-[#2b2025] px-6 text-xs font-semibold text-white"
-          >
-            Go to your account
-          </Link>
-        </div>
-      </main>
-    );
+
+  if (state === "loading") return <div className="grid min-h-[50vh] place-items-center"><LoaderCircle className="size-6 animate-spin text-muted" /></div>;
+  if (state === "login") return <Login onSignedIn={() => { setState("loading"); void load(tab, query); }} />;
+  if (state === "forbidden") return <Message title="Editors only" body="You are signed in, but this account does not have editor rights." signOut />;
+  if (state === "error" || !data) return <Message title="The editor is unavailable" body="The database could not be reached. Check the server logs and try again." />;
+
+  const tracks = data.tracks;
+  const lastRun = data.runs[0];
   return (
-    <main className="min-h-[75vh] bg-[#eee9df]">
-      <div className="mx-auto max-w-[1400px] px-5 py-8 sm:px-8 sm:py-12">
-        <header className="flex flex-wrap items-end justify-between gap-5">
-          <div>
-            <div className="flex items-center gap-2 text-[#a74735]">
-              <ShieldCheck className="size-4" />
-              <p className="micro-label">Administration</p>
-            </div>
-            <h1 className="mt-3 font-serif text-5xl tracking-[-.04em]">
-              Community stewardship
-            </h1>
-          </div>
-          <span className="rounded-full border border-stone-900/10 bg-white/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-[.12em]">
-            Server protected
-          </span>
-        </header>
-        <div className="mt-9 grid gap-6 lg:grid-cols-[220px_1fr]">
-          <nav className="h-fit rounded-[24px] border border-stone-900/8 bg-[#2b2025] p-2 text-white">
-            {tabs.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => {
-                  setState("loading");
-                  setTab(id);
-                  setItems([]);
-                }}
-                className={`flex w-full items-center gap-3 rounded-[17px] px-4 py-3 text-left text-sm transition ${tab === id ? "bg-white text-stone-900" : "text-stone-400 hover:bg-white/5 hover:text-white"}`}
-              >
-                <Icon className="size-4" />
-                {label}
-                <ChevronRight className="ml-auto size-3" />
-              </button>
-            ))}
-          </nav>
-          <section className="min-w-0 rounded-[30px] border border-stone-900/8 bg-[#faf7f1] p-5 shadow-sm sm:p-8">
-            {state === "loading" && (
-              <div className="grid min-h-80 place-items-center">
-                <LoaderCircle className="size-7 animate-spin text-[#a74735]" />
-              </div>
-            )}
-            {state === "error" && (
-              <p className="p-8 text-sm text-red-700">
-                Administration data could not be loaded.
-              </p>
-            )}
-            {state === "ready" && tab === "overview" && overview && (
-              <OverviewView data={overview} />
-            )}
-            {state === "ready" && tab === "users" && (
-              <UsersView
-                users={items as UserRow[]}
-                query={query}
-                setQuery={(value) => {
-                  setState("loading");
-                  setQuery(value);
-                }}
-                select={setSelected}
-              />
-            )}
-            {state === "ready" && tab === "activity" && (
-              <ActivityView items={items as ActivityRow[]} />
-            )}
-            {state === "ready" && tab === "reports" && (
-              <ReportsView items={items as ReportRow[]} act={act} />
-            )}
-            {state === "ready" && tab === "sources" && (
-              <SourcesView items={items as SourceRow[]} act={act} />
-            )}
-            {state === "ready" && tab === "audit" && (
-              <AuditView items={items as AuditRow[]} />
-            )}
-          </section>
-        </div>
-        {message && (
-          <p
-            role="status"
-            className="fixed bottom-6 right-6 rounded-2xl bg-[#2b2025] px-5 py-4 text-xs text-white shadow-xl"
-          >
-            {message}
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Editor</p>
+          <h1 className="display mt-3 text-5xl">Library desk</h1>
+          <p className="mt-2 text-sm text-muted">
+            {data.feeds.crawled} of {data.feeds.known || "—"} feeds visited
+            {lastRun ? ` · last run ${new Date(lastRun.started_at).toLocaleString()} (${lastRun.trigger})` : " · no runs yet"}
           </p>
-        )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" disabled={busy} onClick={() => act({ action: "run-discovery" }, "Discovery finished.")} className="inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-semibold text-accent-ink disabled:opacity-60">
+            {busy ? <LoaderCircle className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}Run discovery now
+          </button>
+          <SignOut />
+        </div>
       </div>
-      {selected && (
-        <UserDrawer user={selected} close={() => setSelected(null)} act={act} />
+      {notice && <p role="status" className="mt-5 rounded-xl border border-line bg-card px-4 py-3 text-sm">{notice}</p>}
+
+      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {TABS.map((item) => (
+          <button key={item.status} type="button" onClick={() => setTab(item.status)} className={`rounded-2xl border p-4 text-left transition ${tab === item.status ? "border-accent bg-accent-soft" : "border-line bg-card hover:border-accent"}`}>
+            <span className="block font-serif text-3xl tabular-nums">{(data.counts[item.status] ?? 0).toLocaleString("en")}</span>
+            <span className="text-xs text-muted">{item.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-8 flex flex-wrap items-center gap-3">
+        <label className="flex h-10 min-w-64 flex-1 items-center gap-2 rounded-full border border-line bg-card px-4">
+          <Search className="size-4 text-muted" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${TABS.find((item) => item.status === tab)?.label.toLowerCase()}`} className="flex-1 bg-transparent text-sm outline-none" />
+        </label>
+        {selected.size > 0 && ACTIONS[tab].map((action) => (
+          <button key={action.status} type="button" disabled={busy} onClick={() => act({ action: "set-status", ids: [...selected], status: action.status }, `${selected.size} recordings updated.`)} className="h-10 rounded-full border border-accent px-4 text-sm font-semibold text-accent hover:bg-accent hover:text-accent-ink">
+            {action.label} {selected.size}
+          </button>
+        ))}
+      </div>
+
+      <ul className="mt-4 divide-y divide-line border-y border-line">
+        {tracks.length === 0 && <li className="py-10 text-center text-sm text-muted">Nothing here.</li>}
+        {tracks.map((track) => (
+          <li key={track.id} className="grid grid-cols-[auto_auto_1fr] items-start gap-3 py-3 sm:grid-cols-[auto_auto_1fr_auto]">
+            <input type="checkbox" aria-label={`Select ${track.title}`} checked={selected.has(track.id)} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(track.id); else next.delete(track.id); return next; })} className="mt-3 size-4 accent-[var(--accent)]" />
+            <button type="button" onClick={() => player.play(track, tracks)} aria-label={`Preview ${track.title}`} className="grid size-9 place-items-center rounded-full border border-line hover:border-accent hover:text-accent"><Play className="ml-0.5 size-3.5" fill="currentColor" /></button>
+            <div className="min-w-0">
+              <p className="font-serif text-lg leading-snug">{track.title}</p>
+              <p className="text-xs text-muted">{track.composer_name}{track.performer ? ` · ${track.performer}` : ""} · {formatDuration(track.duration_seconds)} · {track.license_name}{track.play_count ? ` · ${track.play_count} plays` : ""}</p>
+              <p className="mt-1 text-xs">
+                <span className={`mr-2 inline-block rounded-full px-2 py-0.5 font-semibold tabular-nums ${track.quality_score >= 60 ? "bg-accent-soft text-accent" : "bg-paper-2 text-muted"}`}>{track.quality_score}</span>
+                <span className="text-muted">{track.quality_notes.join(" · ") || "no concerns"}</span>
+                <a href={track.source_page_url} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center gap-1 text-accent hover:underline">source<ExternalLink className="size-3" /></a>
+              </p>
+            </div>
+            <div className="col-span-3 flex gap-2 pl-14 sm:col-span-1 sm:pl-0">
+              {ACTIONS[tab].map((action) => (
+                <button key={action.status} type="button" disabled={busy} onClick={() => act({ action: "set-status", ids: [track.id], status: action.status }, `“${track.title}” → ${action.status}.`)} className="h-8 rounded-full border border-line px-3 text-xs font-semibold hover:border-accent hover:text-accent">
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {data.runs.length > 0 && (
+        <section className="mt-14">
+          <h2 className="display text-3xl">Recent discovery runs</h2>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="text-xs text-muted"><tr><th className="py-2 font-medium">Started</th><th className="font-medium">Trigger</th><th className="font-medium">Feeds</th><th className="font-medium">Examined</th><th className="font-medium">Published</th><th className="font-medium">Review</th><th className="font-medium">Rejected</th><th className="font-medium">Errors</th></tr></thead>
+              <tbody className="divide-y divide-line">
+                {data.runs.map((run) => (
+                  <tr key={run.id} className="tabular-nums">
+                    <td className="py-2">{new Date(run.started_at).toLocaleString()}</td>
+                    <td>{run.trigger}</td>
+                    <td title={run.feeds.join(", ")}>{run.feeds.length}</td>
+                    <td>{run.examined}</td>
+                    <td className="text-accent">{run.published}</td>
+                    <td>{run.review}</td>
+                    <td>{run.rejected}</td>
+                    <td title={run.errors.map((error) => `${error.feed}: ${error.error}`).join("\n")} className={run.errors.length ? "text-accent" : "text-muted"}>{run.finished_at ? run.errors.length : "running / cut off"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
-    </main>
+    </div>
   );
 }
 
-function OverviewView({ data }: { data: Overview }) {
-  const cards = [
-    ["Members", data.members],
-    ["Active accounts", data.activeMembers],
-    ["Suspended", data.suspendedMembers],
-    ["Administrators", data.admins],
-    ["Open reports", data.openReports],
-    ["Published stories", data.stories],
-    ["Visiting now", data.activeNow],
-    ["Logins today", data.loginsToday],
-  ];
-  return (
-    <>
-      <h2 className="font-serif text-3xl">Operational overview</h2>
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(([label, value]) => (
-          <div
-            key={label}
-            className="rounded-2xl border border-stone-900/8 bg-white p-5"
-          >
-            <p className="text-[10px] font-bold uppercase tracking-[.13em] text-stone-400">
-              {label}
-            </p>
-            <p className="mt-4 font-serif text-4xl">{value}</p>
-          </div>
-        ))}
-      </div>
-      <h3 className="mt-10 font-serif text-2xl">Live paths</h3>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        {data.activePaths.length ? (
-          data.activePaths.map((path) => (
-            <div
-              key={path.path}
-              className="flex justify-between rounded-xl bg-stone-900/4 px-4 py-3 text-sm"
-            >
-              <span>{path.path}</span>
-              <strong>{path.visitors}</strong>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-stone-500">
-            No visitors active in the last two minutes.
-          </p>
-        )}
-      </div>
-    </>
-  );
-}
-function UsersView({
-  users,
-  query,
-  setQuery,
-  select,
-}: {
-  users: UserRow[];
-  query: string;
-  setQuery: (s: string) => void;
-  select: (u: UserRow) => void;
-}) {
-  const [draft, setDraft] = useState(query);
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    setQuery(draft);
-  }
-  return (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="font-serif text-3xl">Members</h2>
-        <form
-          onSubmit={submit}
-          className="flex h-10 items-center rounded-full border border-stone-900/10 bg-white px-4"
-        >
-          <Search className="size-4 text-stone-400" />
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Name, handle, or email"
-            className="w-52 bg-transparent px-3 text-xs outline-none"
-          />
-        </form>
-      </div>
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-xs">
-          <thead className="border-b border-stone-900/8 text-[10px] uppercase tracking-[.12em] text-stone-400">
-            <tr>
-              <th className="py-3">Member</th>
-              <th>Status</th>
-              <th>Role</th>
-              <th>Reputation</th>
-              <th>Last login</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.id} className="border-b border-stone-900/6">
-                <td className="py-4">
-                  <strong className="block text-sm">{user.display_name}</strong>
-                  <span className="text-stone-400">
-                    {user.email} · @{user.handle}
-                  </span>
-                </td>
-                <td>
-                  <Badge>{user.account_status}</Badge>
-                </td>
-                <td>{user.role}</td>
-                <td>
-                  {user.reputation_points} · {user.reputation_title}
-                </td>
-                <td>
-                  {user.last_sign_in_at
-                    ? new Date(user.last_sign_in_at).toLocaleString()
-                    : "Never"}
-                </td>
-                <td>
-                  <button
-                    onClick={() => select(user)}
-                    className="rounded-full border px-3 py-2 font-semibold"
-                  >
-                    Manage
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!users.length && (
-          <p className="py-10 text-center text-stone-500">No members found.</p>
-        )}
-      </div>
-    </>
-  );
-}
-function ActivityView({ items }: { items: ActivityRow[] }) {
-  return (
-    <>
-      <h2 className="font-serif text-3xl">Successful logins</h2>
-      <p className="mt-2 text-xs text-stone-500">
-        Application sign-ins only; session refreshes are excluded.
-      </p>
-      <div className="mt-6 grid gap-2">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex flex-wrap justify-between gap-2 rounded-xl border border-stone-900/7 bg-white p-4 text-xs"
-          >
-            <span>
-              <strong>{item.display_name}</strong> · {item.email}
-            </span>
-            <time className="text-stone-400">
-              {new Date(item.created_at).toLocaleString()}
-            </time>
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
-function SourcesView({
-  items,
-  act,
-}: {
-  items: SourceRow[];
-  act: (p: Record<string, unknown>) => void;
-}) {
-  const [notes, setNotes] = useState("");
-  const [noteRequired, setNoteRequired] = useState(false);
-  const noteRef = useRef<HTMLTextAreaElement>(null);
-  const [sourceQuery, setSourceQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const filtered = items.filter((item) => {
-    const needle = sourceQuery.trim().toLocaleLowerCase();
-    return (
-      (statusFilter === "all" || item.status === statusFilter) &&
-      (!needle ||
-        [item.title, item.artist_name, item.detected_license, item.source]
-          .join(" ")
-          .toLocaleLowerCase()
-          .includes(needle))
-    );
-  });
-  const counts = items.reduce<Record<string, number>>((result, item) => {
-    result[item.status] = (result[item.status] ?? 0) + 1;
-    return result;
-  }, {});
-  function add(event: FormEvent<HTMLFormElement>) {
+function Login({ onSignedIn }: { onSignedIn: () => void }) {
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    act({
-      action: "add-music-candidate",
-      source: form.get("source"),
-      sourcePageUrl: form.get("sourcePageUrl"),
-      title: form.get("title"),
-      artistName: form.get("artistName"),
-      detectedLicense: form.get("detectedLicense"),
-      licenseUrl: form.get("licenseUrl"),
-      rightsEvidence: form.get("rightsEvidence"),
-    });
-    event.currentTarget.reset();
-  }
-  function review(payload: Record<string, unknown>) {
-    if (notes.trim().length < 5) {
-      setNoteRequired(true);
-      noteRef.current?.focus();
-      noteRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-    setNoteRequired(false);
-    act({ ...payload, reason: notes.trim() });
+    setPending(true);
+    setError("");
+    const response = await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "login", email: form.get("email"), password: form.get("password") }) });
+    setPending(false);
+    if (response.ok) onSignedIn();
+    else setError((await response.json().catch(() => ({}))).error ?? "Sign-in failed.");
   }
   return (
-    <>
-      <div>
-        <p className="micro-label text-[var(--theme-accent)]">Music operations</p>
-        <h2 className="mt-2 font-serif text-3xl">Discovery inbox</h2>
-        <p className="mt-2 text-xs leading-5 text-stone-500">
-          Every valid discovery lands here before publication. Verified
-          licences enter the gentle import queue; uncertain rights wait for a
-          human decision; imported recordings remain private drafts until you
-          publish them.
-        </p>
-      </div>
-      <div className="mt-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Discovered", items.length],
-          ["Needs review", counts.pending ?? 0],
-          ["Queued", (counts.ready ?? 0) + (counts.approved ?? 0)],
-          ["Imported", counts.imported ?? 0],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-2xl border border-stone-900/8 bg-white p-4">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-stone-400">{label}</p>
-            <p className="mt-2 font-serif text-3xl">{value}</p>
-          </div>
-        ))}
-      </div>
-      <form
-        onSubmit={add}
-        className="mt-6 grid gap-3 rounded-2xl border border-stone-900/8 bg-white p-5 sm:grid-cols-2"
-      >
-        <select name="source" className="h-11 rounded-xl border px-3 text-xs">
-          <option value="internet_archive">Internet Archive</option>
-          <option value="library_of_congress">Library of Congress</option>
-          <option value="free_music_archive">Free Music Archive</option>
-          <option value="youtube">YouTube</option>
-          <option value="wikimedia_commons">Wikimedia Commons</option>
-          <option value="other">Other</option>
-        </select>
-        <input
-          name="sourcePageUrl"
-          required
-          type="url"
-          placeholder="HTTPS source page"
-          className="h-11 rounded-xl border px-3 text-xs"
-        />
-        <input
-          name="title"
-          required
-          placeholder="Track title"
-          className="h-11 rounded-xl border px-3 text-xs"
-        />
-        <input
-          name="artistName"
-          placeholder="Artist / performer"
-          className="h-11 rounded-xl border px-3 text-xs"
-        />
-        <input
-          name="detectedLicense"
-          placeholder="License shown on source"
-          className="h-11 rounded-xl border px-3 text-xs"
-        />
-        <input
-          name="licenseUrl"
-          type="url"
-          placeholder="License or permission URL"
-          className="h-11 rounded-xl border px-3 text-xs"
-        />
-        <textarea
-          name="rightsEvidence"
-          placeholder="Evidence: license text, permission owner, or why this must remain link-only"
-          className="min-h-20 rounded-xl border p-3 text-xs sm:col-span-2"
-        />
-        <button className="h-10 rounded-full bg-[var(--theme-invert)] px-5 text-xs font-semibold text-[var(--theme-invert-text)] sm:col-span-2 sm:w-fit">
-          Add source manually
-        </button>
+    <div className="mx-auto max-w-sm px-4 py-20">
+      <p className="eyebrow">Editor</p>
+      <h1 className="display mt-3 text-5xl">Sign in</h1>
+      <form onSubmit={submit} className="mt-8 grid gap-3">
+        <input name="email" type="email" required autoComplete="email" placeholder="Email" className="h-12 rounded-xl border border-line bg-card px-4 outline-none focus:border-accent" />
+        <input name="password" type="password" required autoComplete="current-password" placeholder="Password" className="h-12 rounded-xl border border-line bg-card px-4 outline-none focus:border-accent" />
+        {error && <p role="alert" className="text-sm text-accent">{error}</p>}
+        <button disabled={pending} className="mt-2 h-12 rounded-xl bg-ink font-semibold text-paper disabled:opacity-60">{pending ? "Signing in…" : "Sign in"}</button>
       </form>
-      <div className="mt-8 grid gap-3 lg:grid-cols-[1fr_auto]">
-        <label className="flex h-11 items-center gap-2 rounded-xl border bg-white px-4">
-          <Search className="size-4 text-stone-400" />
-          <span className="sr-only">Search discovery inbox</span>
-          <input value={sourceQuery} onChange={(e) => setSourceQuery(e.target.value)} placeholder="Search title, performer, source, or licence" className="w-full bg-transparent text-xs outline-none" />
-        </label>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-11 rounded-xl border bg-white px-4 text-xs">
-          <option value="all">Every status</option>
-          <option value="pending">Needs rights review</option>
-          <option value="ready">Ready to import</option>
-          <option value="approved">Manually approved</option>
-          <option value="failed">Failed</option>
-          <option value="imported">Imported</option>
-          <option value="link_only">Link only</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
-      <label className={`mt-3 grid gap-2 rounded-2xl border p-4 text-[10px] font-bold uppercase tracking-[.12em] ${noteRequired ? "border-red-300 bg-red-50 text-red-700" : "border-stone-900/8 bg-white/50 text-stone-500"}`}>
-        Decision note · required before an action
-        <textarea ref={noteRef} value={notes} onChange={(e) => { setNotes(e.target.value); if (e.target.value.trim().length >= 5) setNoteRequired(false); }} className="min-h-16 rounded-xl border bg-white p-3 text-xs font-normal normal-case tracking-normal" placeholder="Example: Recording licence and attribution verified on the source page." />
-        <span className="font-normal normal-case tracking-normal">This note protects the audit trail. Choose an action first and this field will be highlighted if it needs your attention.</span>
-      </label>
-      <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-wider text-stone-400">
-        <span>{filtered.length} of {items.length} candidates</span>
-        <span>Newest discoveries first</span>
-      </div>
-      <div className="mt-5 grid gap-3">
-        {filtered.length ? (
-          filtered.map((item) => (
-            <article
-              key={item.id}
-              className="rounded-2xl border border-stone-900/8 bg-white p-5"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <Badge>{item.status}</Badge>
-                  <h3 className="mt-3 font-serif text-xl">{item.title}</h3>
-                  <p className="mt-1 text-xs text-stone-500">
-                    {item.artist_name} · {item.source.replaceAll("_", " ")} ·{" "}
-                    {item.detected_license}
-                  </p>
-                  <p className="mt-2 text-[10px] text-stone-400">
-                    {item.size_bytes ? `${(item.size_bytes / 1024 / 1024).toFixed(1)} MB` : "Size unknown"}
-                    {item.mime_type ? ` · ${item.mime_type}` : ""}
-                    {item.attempt_count ? ` · ${item.attempt_count} import attempt${item.attempt_count === 1 ? "" : "s"}` : ""}
-                  </p>
-                </div>
-                <a
-                  href={item.source_page_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs font-semibold text-[var(--theme-accent)]"
-                >
-                  Inspect source ↗
-                </a>
-              </div>
-              {item.rights_evidence && (
-                <p className="mt-4 text-xs leading-5 text-stone-500">
-                  {item.rights_evidence}
-                </p>
-              )}
-              {item.last_error && (
-                <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">
-                  Last import error{item.failure_class ? ` (${item.failure_class})` : ""}: {item.last_error}
-                  {item.next_attempt_at && (
-                    <span className="mt-1 block text-[10px] text-red-500">
-                      Automatic retry after {new Date(item.next_attempt_at).toLocaleString()}
-                    </span>
-                  )}
-                </p>
-              )}
-              {(item.status === "ready" || item.status === "approved") && (
-                <p className="mt-5 rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
-                  Queued for the next gentle import run. Importing is sequential and remains subject to the daily file and byte limits.
-                </p>
-              )}
-              {item.status === "pending" && (
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <button
-                    onClick={() =>
-                      review({
-                        action: "review-music-candidate",
-                        candidateId: item.id,
-                        decision: "approved",
-                      })
-                    }
-                    className="rounded-full border px-3 py-2 text-[10px] font-semibold hover:bg-stone-50"
-                  >
-                    Approve for import
-                  </button>
-                  <button
-                    onClick={() =>
-                      review({
-                        action: "review-music-candidate",
-                        candidateId: item.id,
-                        decision: "link_only",
-                      })
-                    }
-                    className="rounded-full bg-[var(--theme-accent)] px-3 py-2 text-[10px] font-semibold text-white"
-                  >
-                    External link only
-                  </button>
-                  <button
-                    onClick={() =>
-                      review({
-                        action: "review-music-candidate",
-                        candidateId: item.id,
-                        decision: "rejected",
-                      })
-                    }
-                    className="rounded-full border px-3 py-2 text-[10px] font-semibold hover:bg-stone-50"
-                  >
-                    Reject
-                  </button>
-                </div>
-              )}
-              {item.status === "failed" && (
-                <button onClick={() => review({ action: "retry-music-candidate", candidateId: item.id })} className="mt-5 rounded-full bg-[var(--theme-invert)] px-4 py-2 text-[10px] font-semibold text-[var(--theme-invert-text)]">
-                  Retry on next import run
-                </button>
-              )}
-              {item.status === "imported" && item.catalog_track_id && (
-                <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-stone-900/8 pt-4">
-                  <Badge>{item.publication_status ?? "draft"}</Badge>
-                  <span className="text-xs text-stone-500">
-                    {item.publication_status === "published" ? "Visible in the public catalogue" : "Stored safely in R2, hidden from public playback"}
-                  </span>
-                  <button
-                    onClick={() => review({ action: "set-catalog-publication", trackId: item.catalog_track_id, publicationStatus: item.publication_status === "published" ? "unpublished" : "published" })}
-                    className="ml-auto rounded-full bg-[var(--theme-accent)] px-4 py-2 text-[10px] font-semibold text-white"
-                  >
-                    {item.publication_status === "published" ? "Unpublish" : "Publish to catalogue"}
-                  </button>
-                </div>
-              )}
-            </article>
-          ))
-        ) : (
-          <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-stone-500">
-            No candidates match this inbox view.
-          </p>
-        )}
-      </div>
-    </>
+    </div>
   );
 }
 
-function ReportsView({
-  items,
-  act,
-}: {
-  items: ReportRow[];
-  act: (p: Record<string, unknown>) => void;
-}) {
+function SignOut() {
   return (
-    <>
-      <h2 className="font-serif text-3xl">Moderation queue</h2>
-      <div className="mt-6 grid gap-3">
-        {items.length ? (
-          items.map((item) => (
-            <article
-              key={item.id}
-              className="rounded-2xl border border-stone-900/8 bg-white p-5"
-            >
-              <div className="flex flex-wrap justify-between gap-3">
-                <div>
-                  <Badge>{item.status}</Badge>
-                  <p className="mt-3 text-sm font-semibold">
-                    {item.target_type} reported by {item.reporter}
-                  </p>
-                  <p className="mt-2 text-xs leading-5 text-stone-500">
-                    {item.reason}
-                  </p>
-                </div>
-                {item.status === "open" && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() =>
-                        act({
-                          action: "resolve-report",
-                          reportId: item.id,
-                          status: "resolved",
-                          reason: "Reviewed and actioned by administrator",
-                        })
-                      }
-                      className="icon-button"
-                    >
-                      <Check className="size-4" />
-                    </button>
-                    <button
-                      onClick={() =>
-                        act({
-                          action: "resolve-report",
-                          reportId: item.id,
-                          status: "dismissed",
-                          reason: "Reviewed and dismissed by administrator",
-                        })
-                      }
-                      className="icon-button"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </article>
-          ))
-        ) : (
-          <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-stone-500">
-            The moderation queue is clear.
-          </p>
-        )}
-      </div>
-    </>
+    <button type="button" onClick={async () => { await fetch("/api/auth", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "logout" }) }); window.location.reload(); }} aria-label="Sign out" className="grid size-11 place-items-center rounded-full border border-line text-muted hover:text-accent">
+      <LogOut className="size-4" />
+    </button>
   );
 }
-function AuditView({ items }: { items: AuditRow[] }) {
+
+function Message({ title, body, signOut = false }: { title: string; body: string; signOut?: boolean }) {
   return (
-    <>
-      <h2 className="font-serif text-3xl">Administrative audit log</h2>
-      <div className="mt-6 grid gap-2">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="rounded-xl border border-stone-900/7 bg-white p-4 text-xs"
-          >
-            <div className="flex justify-between gap-4">
-              <strong>
-                {item.actor} · {item.action.replaceAll("_", " ")}
-              </strong>
-              <time className="text-stone-400">
-                {new Date(item.created_at).toLocaleString()}
-              </time>
-            </div>
-            <p className="mt-2 text-stone-500">
-              {item.target_type} {item.target_id} — {item.reason}
-            </p>
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex rounded-full bg-stone-900/6 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.1em]">
-      {children}
-    </span>
-  );
-}
-function UserDrawer({
-  user,
-  close,
-  act,
-}: {
-  user: UserRow;
-  close: () => void;
-  act: (p: Record<string, unknown>) => void;
-}) {
-  const [reason, setReason] = useState("");
-  const [points, setPoints] = useState(0);
-  return (
-    <div
-      className="fixed inset-0 z-[80] flex justify-end bg-stone-950/30 backdrop-blur-sm"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) close();
-      }}
-    >
-      <aside className="h-full w-full max-w-md overflow-y-auto bg-[#faf7f1] p-7 shadow-2xl">
-        <button onClick={close} className="icon-button ml-auto">
-          <X className="size-4" />
-        </button>
-        <p className="micro-label mt-8 text-[#a74735]">Manage member</p>
-        <h2 className="mt-3 font-serif text-4xl">{user.display_name}</h2>
-        <p className="mt-2 text-xs text-stone-500">
-          {user.email} · @{user.handle}
-        </p>
-        <label className="mt-8 grid gap-2 text-[10px] font-bold uppercase tracking-[.12em] text-stone-500">
-          Required audit reason
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="min-h-24 rounded-2xl border bg-white p-4 text-sm font-normal normal-case tracking-normal outline-none"
-            placeholder="Explain why this change is needed"
-          />
-        </label>
-        <div className="mt-6 grid gap-3">
-          <p className="text-xs font-semibold">Account</p>
-          <button
-            disabled={reason.trim().length < 5}
-            onClick={() =>
-              act({
-                action: "set-status",
-                userId: user.id,
-                status:
-                  user.account_status === "active" ? "suspended" : "active",
-                reason,
-              })
-            }
-            className="h-11 rounded-full bg-[#2b2025] text-xs font-semibold text-white disabled:opacity-30"
-          >
-            {user.account_status === "active"
-              ? "Suspend account"
-              : "Restore account"}
-          </button>
-          <p className="mt-4 text-xs font-semibold">Role</p>
-          <div className="grid grid-cols-3 gap-2">
-            {["member", "moderator", "admin"].map((role) => (
-              <button
-                key={role}
-                disabled={reason.trim().length < 5 || user.role === role}
-                onClick={() =>
-                  act({ action: "set-role", userId: user.id, role, reason })
-                }
-                className="h-10 rounded-full border text-[10px] font-semibold capitalize disabled:opacity-30"
-              >
-                {role}
-              </button>
-            ))}
-          </div>
-          <p className="mt-4 text-xs font-semibold">Reputation adjustment</p>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min="-100"
-              max="100"
-              value={points}
-              onChange={(e) => setPoints(Number(e.target.value))}
-              className="h-11 min-w-0 flex-1 rounded-full border bg-white px-4 text-sm outline-none"
-            />
-            <button
-              disabled={
-                reason.trim().length < 5 ||
-                points === 0 ||
-                Math.abs(points) > 100
-              }
-              onClick={() =>
-                act({
-                  action: "adjust-reputation",
-                  userId: user.id,
-                  points,
-                  reason,
-                })
-              }
-              className="rounded-full bg-[#a74735] px-5 text-xs font-semibold text-white disabled:opacity-30"
-            >
-              Apply
-            </button>
-          </div>
-        </div>
-      </aside>
+    <div className="mx-auto max-w-md px-4 py-24 text-center">
+      <h1 className="display text-4xl">{title}</h1>
+      <p className="mt-4 text-sm text-muted">{body}</p>
+      {signOut && <div className="mt-6 flex justify-center"><SignOut /></div>}
     </div>
   );
 }

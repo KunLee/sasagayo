@@ -1,18 +1,11 @@
 {
-  "name": "Sasagayo",
+  "name": "Sasagayo — Open classical music",
   "short_name": "Sasagayo",
-  "description": "Sasagayo is a minimal static web application built with Next.js and the App Router.",
+  "description": "Great classical recordings, free to hear and share.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#edf5f6",
-  "theme_color": "#28768e",
-  "icons": [
-    {
-      "src": "/favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any",
-      "purpose": "any"
-    }
-  ]
+  "background_color": "#f7f2e8",
+  "theme_color": "#7d2a36",
+  "icons": [{ "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" }]
 }

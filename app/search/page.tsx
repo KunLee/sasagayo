@@ -1,8 +1,82 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Search } from "lucide-react";
-import StoryCard from "@/components/StoryCard";
-import { circles, recommendations, stories } from "@/lib/community";
-export const metadata:Metadata={title:"Search",description:"Search Sasagayo stories, music, people, and circles."};
-export default async function SearchPage({searchParams}:{searchParams:Promise<{q?:string}>}){const {q=""}=await searchParams;const term=q.toLowerCase();const matchedStories=stories.filter(item=>`${item.title} ${item.excerpt} ${item.track} ${item.artist} ${item.author} ${item.mood}`.toLowerCase().includes(term));const matchedMusic=recommendations.filter(item=>`${item.title} ${item.artist} ${item.genre} ${item.mood}`.toLowerCase().includes(term));const matchedCircles=circles.filter(item=>`${item.name} ${item.description}`.toLowerCase().includes(term));const total=matchedStories.length+matchedMusic.length+matchedCircles.length;return <div className="mx-auto min-h-[70vh] max-w-[1200px] px-6 py-12 sm:px-8 lg:py-16"><p className="micro-label text-[#a74735]">Search Sasagayo</p><form className="mt-4 flex max-w-3xl items-center rounded-full border border-stone-900/10 bg-white px-5"><Search className="size-5 text-[#a74735]"/><input name="q" defaultValue={q} autoFocus className="h-14 flex-1 bg-transparent px-4 text-lg outline-none" placeholder="Songs, feelings, stories, people…"/><button className="rounded-full bg-[#2b2025] px-5 py-2.5 text-xs font-semibold text-white">Search</button></form><div className="mt-8 flex items-end justify-between border-b border-stone-900/8 pb-5"><h1 className="font-serif text-4xl">{q?<>Results for “{q}”</>:"Follow your curiosity."}</h1>{q&&<span className="text-xs text-stone-400">{total} thoughtful matches</span>}</div>{q&&total===0&&<div className="py-24 text-center"><p className="font-serif text-3xl">Nothing exact—yet.</p><p className="mt-3 text-sm text-stone-500">Try a mood like “rainy”, an artist, or a moment such as “starting over”.</p></div>}{matchedStories.length>0&&<section className="mt-10"><h2 className="micro-label text-stone-400">Stories</h2><div className="mt-5 grid gap-5 lg:grid-cols-2">{matchedStories.map(story=><StoryCard key={story.slug} story={story}/>)}</div></section>}{matchedMusic.length>0&&<section className="mt-12"><h2 className="micro-label text-stone-400">Music</h2><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{matchedMusic.map(item=><div key={item.title} className="rounded-2xl bg-white/55 p-5"><p className="font-serif text-xl">{item.title}</p><p className="mt-1 text-xs text-stone-500">{item.artist} · {item.genre}</p></div>)}</div></section>}{matchedCircles.length>0&&<section className="mt-12"><h2 className="micro-label text-stone-400">Circles</h2><div className="mt-5 grid gap-3 sm:grid-cols-2">{matchedCircles.map(item=><Link href={`/circles#${item.slug}`} key={item.slug} className="rounded-2xl border border-stone-900/8 bg-white/55 p-5"><h3 className="font-serif text-xl">{item.name}</h3><p className="mt-2 text-xs text-stone-500">{item.description}</p></Link>)}</div></section>}</div>}
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import SearchBox from "@/components/SearchBox";
+import TrackList, { PlayAllButton } from "@/components/TrackList";
+import { searchTracks } from "@/lib/catalog";
+import { COMPOSERS, fold } from "@/lib/composers";
 
+const PAGE_SIZE = 30;
+type Props = { searchParams: Promise<{ q?: string; page?: string }> };
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const { q } = await searchParams;
+  return { title: q ? `“${q}”` : "Search", robots: { index: false } };
+}
+
+export default async function SearchPage({ searchParams }: Props) {
+  const { q = "", page: pageParam } = await searchParams;
+  const query = q.trim().slice(0, 120);
+  const page = Math.max(1, Number(pageParam) || 1);
+  const result = query
+    ? await searchTracks(query, { page, pageSize: PAGE_SIZE }).catch(() => null)
+    : null;
+  const pages = result ? Math.ceil(result.total / PAGE_SIZE) : 0;
+  const folded = fold(query);
+  const composerHits = query.length > 1
+    ? COMPOSERS.filter((composer) => [composer.name, composer.short, composer.zh].some((name) => fold(name).includes(folded) || folded.includes(fold(name)))).slice(0, 6)
+    : [];
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+      <div className="max-w-2xl"><SearchBox size="hero" defaultValue={query} autoFocus={!query} /></div>
+      {composerHits.length > 0 && (
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted">Composer pages:</span>
+          {composerHits.map((composer) => (
+            <Link key={composer.slug} href={`/composers/${composer.slug}`} className="rounded-full border border-line px-3 py-1.5 text-sm hover:border-accent hover:text-accent">
+              {composer.name} <span className="text-muted">{composer.zh}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {!query && (
+        <p className="mt-10 max-w-xl text-sm leading-7 text-muted">
+          Search by composer, work, catalogue number, performer, or instrument — in English or Chinese. For example
+          “BWV 1007”, “Rachmaninoff prelude”, “string quartet”, or “莫扎特 安魂曲”.
+        </p>
+      )}
+
+      {query && !result && (
+        <p className="mt-12 text-center text-sm text-muted">The library could not be searched just now. Please try again in a moment.</p>
+      )}
+
+      {result && (
+        <section className="mt-12">
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+            <div>
+              <h1 className="display text-4xl">Results for “{query}”</h1>
+              <p className="mt-1 text-sm text-muted">{result.total.toLocaleString("en")} recording{result.total === 1 ? "" : "s"}, best first</p>
+            </div>
+            <PlayAllButton tracks={result.tracks} label="Play results" />
+          </div>
+          <div className="mt-2">
+            <TrackList
+              tracks={result.tracks}
+              startNumber={(page - 1) * PAGE_SIZE + 1}
+              emptyMessage="No recordings match yet. Try fewer words, or just a composer's name."
+            />
+          </div>
+          {pages > 1 && (
+            <nav aria-label="Pages" className="mt-8 flex items-center justify-between text-sm">
+              {page > 1 ? <Link href={`?q=${encodeURIComponent(query)}&page=${page - 1}`} className="inline-flex items-center gap-2 font-semibold text-accent"><ArrowLeft className="size-4" />Previous</Link> : <span />}
+              <span className="text-muted">Page {page} of {pages}</span>
+              {page < pages ? <Link href={`?q=${encodeURIComponent(query)}&page=${page + 1}`} className="inline-flex items-center gap-2 font-semibold text-accent">Next<ArrowRight className="size-4" /></Link> : <span />}
+            </nav>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
