@@ -76,7 +76,7 @@ export default async function HomePage() {
             <div>
               <p className="eyebrow">Today&apos;s programme · {today}</p>
               <h2 className="display mt-3 text-5xl">An evening concert</h2>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-muted">Eight pieces by eight composers, chosen from the finest recordings in the library. A new programme every day.</p>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-muted">{programme.length} pieces by {programme.length} different composers, chosen from the finest recordings in the library. A new programme every day.</p>
             </div>
             <PlayAllButton tracks={programme} label="Play the programme" />
           </div>

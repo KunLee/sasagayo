@@ -67,7 +67,7 @@ const HARD_REJECT: [RegExp, string][] = [
 const MUSICAL_FORM = /\b(op\.?|opus|bwv|k\.|kv|hob|d\.|hwv|rv|wwv|b\.|no\.|nr\.|act|mass|messe|aria|suite|trio|lied|lieder|air|song|dance|danse|tanz|rondo|gigue|polka|tango|hymn|psalm|motet|opera|oratorio|requiem|gloria|kyrie|credo|sanctus|te deum|ave maria|stabat mater|magnificat|vespers|allegro|andante|adagio|largo|presto|lento|vivace|moderato|grave)\b|\b(symphon|sinfoni|sonat|concert|prelud|pr\u00e9lud|fugu|etude|\u00e9tude|mazurk|polonais|waltz|valse|walzer|ballad|scherz|impromptu|rhapsod|overtur|ouvertur|quartet|quartett|quintet|variation|serenad|march|marsch|minuet|menuet|gymnop|arabesque|barcarol|fantasi|toccata|partita|cantata|kantate|chorale|choral|madrigal|movement|album|feuille|pi[e\u00e8]ce|st\u00fcck|stuck|romanc|eleg|berceuse|lullab|capric|intermezz|humoresk|humoresque|bagatell|chaconn|pavan|sarabande|bourr|gavott|tone poem|lament|habanera|r[e\u00ea]verie|consolation|liebestr|nocturn|invention|canon|passacag|divertiment|concertino|ricercar|sinfonia|duet|duo|allegr|andant|adagi|prest|largh|lent|vivac|moderat|grav|maestos|cantabil|sostenut|tempo|menuett|zauberfl|figaro|giovanni|traviata|carmen|tosca|boh[e\u00e8]me|nutcracker|swan lake|four seasons|seasons)/;
 const ENSEMBLE = /\b(orchestra|orchester|orchestre|orkest|symphony|sinfonie|philharmoni|quartet|quartett|quatuor|ensemble|choir|chorus|chor|trio|band|consort|camerata|sinfonietta|musopen)\b/;
 const TRUSTED_CATEGORY = /^Category:(Musopen|European Archive|Featured sounds|Quality sounds|Sounds of the United States Marine Band|United States Marine Band|Audio files from the White House|hr-Sinfonieorchester)/i;
-const JUNK_PERSON = /https?:|www\.|youtube|flickr|unknown|email|collection|repository|ibiblio|garageband|recording|archive|composer:|^\[\d+\]$|no machine-readable|fotograf|zeichner|uploaded|user:|own work|original uploader|see below|created by|anonymous|wikimedia|wikipedia/i;
+const JUNK_PERSON = /https?:|www\.|uploader|^by |youtube|flickr|unknown|email|collection|repository|ibiblio|garageband|recording|archive|composer:|^\[\d+\]$|no machine-readable|fotograf|zeichner|uploaded|user:|own work|original uploader|see below|created by|anonymous|wikimedia|wikipedia/i;
 
 function clean(value: string) {
   return value
@@ -156,7 +156,7 @@ export function parseTitle(raw: string, composer: Composer | null) {
     performer = performedBy[1].trim();
     title = title.slice(0, performedBy.index).trim();
   }
-  const onInstrument = !performer && title.match(/\s*[-–,]?\s*([\p{Lu}][\p{L}.' ]{2,60}?) (?:on|at the) (?:piano|violin|cello|organ|guitar|harpsichord)$/u);
+  const onInstrument = !performer && title.match(/\s*[-–,]\s*([\p{Lu}][\p{L}.' ]{2,60}?),? (?:(?:on|at the) )?(?:piano|violin|cello|organ|guitar|harpsichord|flute|soprano|tenor)$/u);
   if (onInstrument) {
     performer = onInstrument[1].trim();
     title = title.slice(0, onInstrument.index).trim();

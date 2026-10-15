@@ -63,3 +63,10 @@ test("segments Chinese queries into searchable words", () => {
   assert.deepEqual(sorted("贝多芬月光奏鸣曲"), ["moonlight", "sonata", "贝多芬"]);
   assert.deepEqual(sorted("Dvořák New World"), ["dvorak", "new", "world"]);
 });
+
+test("pulls the performer out of 'Title – Name instrument' file names", () => {
+  const vivaldi = COMPOSER_BY_SLUG.get("vivaldi")!;
+  const draft = evaluate(raw({ rawTitle: "Four Seasons 2 Summer mvt 3 Presto - John Harrison violin", artist: "By uploader", composer: vivaldi }))!;
+  assert.equal(draft.title, "Four Seasons 2 Summer mvt 3 Presto");
+  assert.equal(draft.performer, "John Harrison");
+});

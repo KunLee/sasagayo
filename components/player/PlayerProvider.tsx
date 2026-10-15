@@ -42,6 +42,7 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0);
   const counted = useRef<string | null>(null);
   const pendingSeek = useRef<number | null>(null);
+  const retried = useRef<string | null>(null);
   const current = index >= 0 ? queue[index] ?? null : null;
 
   const start = useCallback((tracks: PlayerTrack[], at: number, offset = 0) => {
@@ -151,8 +152,20 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
           }
         }}
         onEnded={next}
-        onError={() => {
+        onError={(event) => {
           if (!current) return;
+          // Archives occasionally throttle bursts (HTTP 429); one delayed retry usually succeeds.
+          if (retried.current !== current.id) {
+            retried.current = current.id;
+            const element = event.currentTarget;
+            const resumeAt = element.currentTime;
+            window.setTimeout(() => {
+              pendingSeek.current = resumeAt > 0 ? resumeAt : null;
+              element.src = current.stream_url;
+              void element.play().catch(() => undefined);
+            }, 1500);
+            return;
+          }
           setLoading(false);
           setError(`“${current.title}” could not be loaded from its archive.`);
           if (index + 1 < queue.length) window.setTimeout(next, 1500);

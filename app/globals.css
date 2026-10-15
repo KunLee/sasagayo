@@ -87,6 +87,15 @@ body {
   color: var(--accent);
 }
 
+.font-serif,
+.display {
+  font-variant-numeric: lining-nums;
+}
+
+body {
+  overflow-x: clip;
+}
+
 .display {
   font-family: var(--font-serif);
   font-weight: 500;
