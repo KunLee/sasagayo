@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Heart } from "lucide-react";
+import AccountMenu from "@/components/AccountMenu";
 import SearchBox from "@/components/SearchBox";
 import { useLibrary } from "@/lib/library-store";
 
@@ -48,6 +49,7 @@ export default function Header() {
           <span className="hidden sm:inline">My library</span>
           {library.tracks.length > 0 && <span className="text-xs tabular-nums opacity-80">{library.tracks.length}</span>}
         </Link>
+        <AccountMenu />
       </div>
       {/* Phone navigation: a scrollable strip under the bar. */}
       <nav aria-label="Main (mobile)" className="scrollbar-none flex gap-1 overflow-x-auto border-t border-line px-4 py-2 md:hidden">

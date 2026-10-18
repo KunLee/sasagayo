@@ -6,12 +6,14 @@ import { useState } from "react";
 import ShareButton from "@/components/ShareButton";
 import { PlayAllButton } from "@/components/TrackList";
 import { usePlayer } from "@/components/player/PlayerProvider";
+import { useSession } from "@/components/SessionProvider";
 import { formatDuration } from "@/lib/format";
 import { useLibrary } from "@/lib/library-store";
 
 export default function LibraryClient() {
   const library = useLibrary();
   const player = usePlayer();
+  const session = useSession();
   const [name, setName] = useState("My classical mix");
   const tracks = library.tracks;
   const mixPath = `/mix?n=${encodeURIComponent(name.trim() || "A classical mix")}&t=${tracks.slice(0, 60).map((track) => track.id).join(",")}`;
@@ -21,9 +23,18 @@ export default function LibraryClient() {
       <p className="eyebrow">My library</p>
       <h1 className="display mt-4 text-[clamp(2.75rem,7vw,5rem)]">Your saved music</h1>
       <p className="mt-4 max-w-2xl text-sm leading-7 text-muted">
-        Tap the heart on any recording to keep it here. Your library lives in this browser — no account needed — and you can
-        send the whole list to a friend as a single link.
+        Tap the heart on any recording to keep it here, and send the whole list to a friend as a single link.
       </p>
+      {session.account ? (
+        <p className="mt-3 text-xs text-muted">
+          {library.sync === "saving" ? "Saving to your account…" : library.sync === "error" ? "Couldn't reach your account — changes will retry with your next edit." : `Synced to ${session.account.email}`}
+        </p>
+      ) : !session.loading && (
+        <p className="mt-4 max-w-2xl rounded-2xl border border-line bg-card px-4 py-3 text-sm">
+          Saved in this browser only. <Link href="/signup?next=/library" className="font-semibold text-accent">Create a free account</Link> or{" "}
+          <Link href="/signin?next=/library" className="font-semibold text-accent">sign in</Link> to keep your library on every device.
+        </p>
+      )}
 
       {tracks.length === 0 ? (
         <div className="mt-14 rounded-3xl border border-dashed border-line px-6 py-16 text-center">

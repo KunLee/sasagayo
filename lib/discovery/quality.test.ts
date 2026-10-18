@@ -70,3 +70,10 @@ test("pulls the performer out of 'Title – Name instrument' file names", () => 
   assert.equal(draft.title, "Four Seasons 2 Summer mvt 3 Presto");
   assert.equal(draft.performer, "John Harrison");
 });
+
+test("manual mode sends would-be publications to review", () => {
+  const good = raw({ rawTitle: "Chopin - Nocturne No. 8 in D-flat major, Op. 27 No. 2 (Frank Levy).flac", mime: "audio/flac" });
+  assert.equal(evaluate(good, { mode: "manual", publishAt: 60, reviewAt: 40 })!.status, "review");
+  assert.equal(evaluate(good, { mode: "auto", publishAt: 95, reviewAt: 40 })!.status, "review");
+  assert.equal(evaluate(raw({ mime: "audio/midi" }), { mode: "auto", publishAt: 30, reviewAt: 25 })!.status, "rejected");
+});

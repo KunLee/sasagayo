@@ -3,37 +3,111 @@
 import { useSyncExternalStore } from "react";
 import type { PlayerTrack } from "@/components/player/types";
 
-/** Personal library kept in the browser: no account needed to save or share. */
+/**
+ * The listener's library. Signed out, it lives in this browser's storage;
+ * signed in, the account is the source of truth and every change is saved
+ * to the server (browser saves are merged in on sign-in).
+ */
 const KEY = "sasagayo:library:v1";
 const EMPTY: PlayerTrack[] = [];
 let cache: PlayerTrack[] | null = null;
+let remote: { accountId: string } | null = null;
+let syncState: "idle" | "saving" | "error" = "idle";
+let pushTimer: number | undefined;
 const listeners = new Set<() => void>();
+const notify = () => listeners.forEach((listener) => listener());
+
+function readLocal(): PlayerTrack[] {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocal(tracks: PlayerTrack[]) {
+  try {
+    if (tracks.length) window.localStorage.setItem(KEY, JSON.stringify(tracks));
+    else window.localStorage.removeItem(KEY);
+  } catch {
+    // Private mode or full storage: the library still works for this visit.
+  }
+}
 
 function read(): PlayerTrack[] {
   if (cache) return cache;
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(KEY) ?? "[]");
-    cache = Array.isArray(parsed) ? parsed : [];
-  } catch {
-    cache = [];
-  }
+  cache = remote ? [] : readLocal();
   return cache;
+}
+
+async function push() {
+  if (!remote) return;
+  syncState = "saving";
+  notify();
+  try {
+    const response = await fetch("/api/library", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: read().map((track) => track.id) }),
+    });
+    syncState = response.ok ? "idle" : "error";
+  } catch {
+    syncState = "error";
+  }
+  notify();
 }
 
 function write(next: PlayerTrack[]) {
   cache = next;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    // Private mode or full storage: the library still works for this visit.
+  if (remote) {
+    window.clearTimeout(pushTimer);
+    pushTimer = window.setTimeout(() => void push(), 400);
+  } else {
+    writeLocal(next);
   }
-  listeners.forEach((listener) => listener());
+  notify();
+}
+
+/** Called by the session provider when someone signs in. */
+export async function connectAccount(accountId: string) {
+  if (remote?.accountId === accountId) return;
+  const local = readLocal();
+  remote = { accountId };
+  syncState = "saving";
+  notify();
+  try {
+    const response = await fetch("/api/library", { cache: "no-store" });
+    if (!response.ok) throw new Error("load failed");
+    const { tracks } = (await response.json()) as { tracks: PlayerTrack[] };
+    const known = new Set(tracks.map((track) => track.id));
+    const additions = local.filter((track) => !known.has(track.id));
+    cache = [...additions.map(toStored), ...tracks];
+    syncState = "idle";
+    writeLocal([]);
+    if (additions.length) await push();
+  } catch {
+    // Keep showing the browser library rather than an empty one.
+    cache = local;
+    syncState = "error";
+  }
+  notify();
+}
+
+/** Called on sign-out: the account's library must not stay on a shared device. */
+export function disconnectAccount() {
+  window.clearTimeout(pushTimer);
+  remote = null;
+  cache = [];
+  syncState = "idle";
+  writeLocal([]);
+  notify();
 }
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
   const onStorage = (event: StorageEvent) => {
-    if (event.key === KEY) {
+    if (event.key === KEY && !remote) {
       cache = null;
       listener();
     }
@@ -45,10 +119,17 @@ function subscribe(listener: () => void) {
   };
 }
 
+const getSync = () => syncState;
+const getRemote = () => Boolean(remote);
+
 export function useLibrary() {
   const tracks = useSyncExternalStore(subscribe, read, () => EMPTY);
+  const sync = useSyncExternalStore(subscribe, getSync, () => "idle" as const);
+  const synced = useSyncExternalStore(subscribe, getRemote, () => false);
   return {
     tracks,
+    sync,
+    synced,
     has: (id: string) => tracks.some((track) => track.id === id),
     toggle: (track: PlayerTrack) => {
       const current = read();

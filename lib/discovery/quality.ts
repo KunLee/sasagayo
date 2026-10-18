@@ -52,6 +52,15 @@ export type TrackDraft = {
 export const PUBLISH_AT = 60;
 export const REVIEW_AT = 40;
 
+/** How scores become decisions; editors change this in the editor desk. */
+export type PublishPolicy = { mode: "auto" | "manual"; publishAt: number; reviewAt: number };
+export const DEFAULT_POLICY: PublishPolicy = { mode: "auto", publishAt: PUBLISH_AT, reviewAt: REVIEW_AT };
+
+export function decide(score: number, policy: PublishPolicy): TrackStatus {
+  if (score >= policy.publishAt) return policy.mode === "auto" ? "published" : "review";
+  return score >= policy.reviewAt ? "review" : "rejected";
+}
+
 const PLAYABLE = /^(audio\/(ogg|mpeg|mp3|flac|x-flac|wav|x-wav|wave|webm|mp4|opus)|application\/ogg|video\/webm)$/;
 
 const HARD_REJECT: [RegExp, string][] = [
@@ -201,7 +210,7 @@ export function buildSearchText(title: string, composer: Composer | null, perfor
 }
 
 /** Decides what a discovered file is, how good it is, and whether to publish it. */
-export function evaluate(raw: RawRecording): TrackDraft | null {
+export function evaluate(raw: RawRecording, policy: PublishPolicy = DEFAULT_POLICY): TrackDraft | null {
   const composer = raw.composer;
   if (!composer) return null;
   const notes: string[] = [];
@@ -248,7 +257,8 @@ export function evaluate(raw: RawRecording): TrackDraft | null {
 
   if (hardReject) score = Math.min(score, 20);
   score = Math.max(0, Math.min(100, score));
-  const status: TrackStatus = score >= PUBLISH_AT ? "published" : score >= REVIEW_AT ? "review" : "rejected";
+  // Hard rejects are capped at 20, below the lowest allowed review threshold (25).
+  const status = decide(score, policy);
 
   const attribution = [
     performer ? `Performed by ${performer}` : clean(raw.artist || raw.credit).slice(0, 300),

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import PlayerProvider from "@/components/player/PlayerProvider";
+import SessionProvider from "@/components/SessionProvider";
 import { SITE_URL } from "@/lib/format";
 import "./globals.css";
 
@@ -30,11 +31,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable}`}>
       <body>
-        <PlayerProvider>
-          <Header />
-          <main>{children}</main>
-          <Footer />
-        </PlayerProvider>
+        <SessionProvider>
+          <PlayerProvider>
+            <Header />
+            <main>{children}</main>
+            <Footer />
+          </PlayerProvider>
+        </SessionProvider>
       </body>
     </html>
   );

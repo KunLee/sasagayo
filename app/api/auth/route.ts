@@ -142,10 +142,47 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as {
-      action?: "signup" | "login" | "refresh" | "logout";
+      action?: "signup" | "login" | "refresh" | "logout" | "forgot" | "reset";
       email?: string;
       password?: string;
+      displayName?: string;
+      accessToken?: string;
+      refreshToken?: string;
     };
+    const siteOrigin = request.nextUrl.origin;
+
+    if (body.action === "forgot") {
+      if (!body.email) return NextResponse.json({ error: "Enter your email address." }, { status: 400 });
+      const { url, publishableKey } = getSupabaseConfig();
+      await fetch(`${url}/auth/v1/recover?redirect_to=${encodeURIComponent(`${siteOrigin}/reset-password`)}`, {
+        method: "POST",
+        headers: { apikey: publishableKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: body.email }),
+        cache: "no-store",
+      });
+      // Same answer whether or not the address exists, so accounts cannot be enumerated.
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === "reset") {
+      if (!body.accessToken || !body.refreshToken || !body.password || body.password.length < 8) {
+        return NextResponse.json({ error: "Choose a password of at least 8 characters." }, { status: 400 });
+      }
+      const { url, publishableKey } = getSupabaseConfig();
+      const update = await fetch(`${url}/auth/v1/user`, {
+        method: "PUT",
+        headers: { apikey: publishableKey, Authorization: `Bearer ${body.accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ password: body.password }),
+        cache: "no-store",
+      });
+      const payload = await update.json().catch(() => ({}));
+      if (!update.ok) {
+        return NextResponse.json({ error: payload.msg ?? payload.error_description ?? "This reset link has expired. Request a new one." }, { status: 400 });
+      }
+      const response = NextResponse.json({ user: payload });
+      setSessionCookies(response, { access_token: body.accessToken, refresh_token: body.refreshToken });
+      return response;
+    }
 
     if (body.action === "signup") {
       if (!body.email || !body.password || body.password.length < 8) {
@@ -158,10 +195,14 @@ export async function POST(request: NextRequest) {
         );
       }
       const { url, publishableKey } = getSupabaseConfig();
-      const signUpResponse = await fetch(`${url}/auth/v1/signup`, {
+      const signUpResponse = await fetch(`${url}/auth/v1/signup?redirect_to=${encodeURIComponent(`${siteOrigin}/signin?confirmed=1`)}`, {
         method: "POST",
         headers: { apikey: publishableKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: body.email, password: body.password }),
+        body: JSON.stringify({
+          email: body.email,
+          password: body.password,
+          data: { display_name: body.displayName?.trim().slice(0, 60) || undefined },
+        }),
         cache: "no-store",
       });
       const payload = await signUpResponse.json();

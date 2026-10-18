@@ -1,5 +1,6 @@
 import { inList, serviceJson } from "../server/db.ts";
-import { evaluate, type TrackDraft } from "./quality.ts";
+import { loadPolicy } from "./policy.ts";
+import { evaluate, type PublishPolicy, type TrackDraft } from "./quality.ts";
 import { FEEDS, type Feed } from "./sources.ts";
 
 type FeedState = { feed: string; next_offset: number; total_hits: number | null; last_crawled_at: string | null };
@@ -64,10 +65,10 @@ async function storeDrafts(drafts: TrackDraft[]) {
   return { inserted: rows, duplicates };
 }
 
-async function crawlFeed(feed: Feed, state: FeedState | undefined) {
+async function crawlFeed(feed: Feed, state: FeedState | undefined, policy: PublishPolicy) {
   const offset = state?.next_offset ?? 0;
   const page = await feed.fetch(offset);
-  const drafts = page.items.map(evaluate).filter((draft): draft is TrackDraft => draft !== null);
+  const drafts = page.items.map((item) => evaluate(item, policy)).filter((draft): draft is TrackDraft => draft !== null);
   const stored = await storeDrafts(drafts);
   await serviceJson("discovery_state?on_conflict=feed", {
     method: "POST",
@@ -91,13 +92,13 @@ export async function runDiscovery(options: { trigger: string; budgetMs: number;
   });
   const summary: RunSummary = { runId: run.id, feeds: [], examined: 0, inserted: 0, published: 0, review: 0, rejected: 0, duplicates: 0, errors: [], durationMs: 0 };
 
-  const states = await serviceJson<FeedState[]>("discovery_state?select=*");
+  const [states, policy] = await Promise.all([serviceJson<FeedState[]>("discovery_state?select=*"), loadPolicy()]);
   const queue = orderFeeds(states).filter(({ feed }) => !options.feedIds || options.feedIds.includes(feed.id));
   // Feeds run two at a time; Commons asks clients to keep concurrency low.
   const PAGE_COST_MS = 9_000;
   while (queue.length && Date.now() - startedAt + PAGE_COST_MS < options.budgetMs) {
     const batch = queue.splice(0, 2);
-    const results = await Promise.allSettled(batch.map(({ feed, state }) => crawlFeed(feed, state)));
+    const results = await Promise.allSettled(batch.map(({ feed, state }) => crawlFeed(feed, state, policy)));
     results.forEach((result, index) => {
       const feed = batch[index].feed;
       summary.feeds.push(feed.id);
