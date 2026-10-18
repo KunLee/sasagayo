@@ -14,7 +14,9 @@ Vercel Cron (daily 19:00 UTC)
             ├─ sources.ts              Wikimedia Commons deepcat:"Audio files of music by …" per composer,
             │                          Internet Archive Musopen items with an explicit licence
             ├─ quality.ts              normalise title / performer / licence, score 0–100
-            │                            ≥ 60 published · 40–59 review · < 40 rejected
+            ├─ policy.ts               editor-set rules from `site_settings`:
+            │                            automatic: ≥ publish_at published · ≥ review_at review · else rejected
+            │                            manual:    ≥ review_at review · else rejected (nothing goes live unreviewed)
             └─ Supabase `tracks`       one row per file; rejected rows are kept so they are never re-judged
 ```
 
@@ -42,7 +44,8 @@ Vercel Cron (daily 19:00 UTC)
 | `/track/[id]?t=90` | Recording page; `t` starts playback at a moment; OG image for link previews |
 | `/library` | Saved recordings (browser storage), reorder, share as a mix link |
 | `/mix?n=…&t=id,id` | A shared mix; recipients can play or save it |
-| `/admin` | Editor desk: review queue, publish / reject / hide, run discovery, run log |
+| `/signup`, `/signin`, `/forgot-password`, `/reset-password`, `/account` | Listener accounts (Supabase Auth, HTTP-only cookies) |
+| `/admin` | Editor desk: incoming (24 h), review queue, all music with filters and bulk decisions; publishing mode and thresholds; users (editor role, suspension); discovery runs |
 
 ## Setup
 
@@ -64,8 +67,18 @@ Environment (also set in Vercel):
 | `APP_ORIGIN` | Canonical site URL for share links and metadata |
 | `DISCOVERY_BUDGET_SECONDS` | Optional; seconds each cron run may crawl (default 50) |
 
-Editors are users with the `admin` role in `public.user_roles` (see
-`202608230005_admin_management.sql`).
+Editors are users with the `admin` role in `public.user_roles`; existing editors
+can grant the role from **Editor desk → Users**. Editor decisions are stored in
+`tracks.reviewed_by` and are never overridden when rules are re-applied.
+
+Listener libraries live in `library_items` (row-level security: owner only) and
+are written through `set_my_library()`. Signed-out visitors keep a browser-only
+library that is merged into their account on first sign-in.
+
+Supabase Auth settings to check in the dashboard (Authentication → URL
+Configuration): add `https://ai.kumind.com.au/**` to **Redirect URLs** so
+confirmation and password-reset emails return to the site. The built-in email
+sender is heavily rate-limited; configure custom SMTP before inviting many users.
 
 ## Checks
 
