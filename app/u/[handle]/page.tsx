@@ -99,9 +99,10 @@ export default async function ProfilePage({ params }: Props) {
           )}
         </section>
 
-        <p className="text-center text-sm">
+        {/* A div, not a p: the share sheet contains block elements. */}
+        <div className="text-center text-sm">
           <ShareButton path={`/u/${profile.handle}`} title={t.profile.shareText(profile.displayName)} label={t.profile.share} className="inline-flex h-11 items-center gap-2 rounded-full border border-line px-5 font-semibold transition hover:border-accent hover:text-accent" />
-        </p>
+        </div>
         <p className="text-center text-xs text-muted"><Link href="/" className="hover:text-accent">Sasagayo</Link></p>
       </div>
     </div>
