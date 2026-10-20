@@ -1,4 +1,6 @@
-import { NextRequest } from "next/server";
+import { after, NextRequest } from "next/server";
+import { track } from "@/lib/server/analytics";
+import { authenticateRequest } from "@/lib/server/supabase-session";
 import { getTracks, searchTracks } from "@/lib/catalog";
 import { publicRpc } from "@/lib/server/db";
 
@@ -19,8 +21,21 @@ export async function GET(request: NextRequest) {
 
 /** Counts a play once a listener has stayed for 30 seconds. */
 export async function POST(request: NextRequest) {
-  const { id } = (await request.json().catch(() => ({}))) as { id?: string };
+  const { id, composer, via, editor } = (await request.json().catch(() => ({}))) as { id?: string; composer?: string; via?: string; editor?: boolean };
   if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return Response.json({ error: "Unknown track." }, { status: 400 });
   await publicRpc("record_play", { p_track_id: id }, { revalidate: 0 }).catch(() => undefined);
+  // Editors previewing in the desk are not listeners.
+  if (!editor) {
+    after(async () => {
+      const auth = request.cookies.has("sasagayo-access-token") ? await authenticateRequest(request).catch(() => null) : null;
+      await track(request.headers, {
+        type: "play",
+        track_id: id,
+        composer_slug: typeof composer === "string" ? composer.slice(0, 40) : null,
+        via: via === "radio" ? "radio" : "listen",
+        user_id: auth?.user.id ?? null,
+      });
+    });
+  }
   return Response.json({ ok: true });
 }

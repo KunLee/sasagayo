@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
+import { after } from "next/server";
+import { track } from "@/lib/server/analytics";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import SearchBox from "@/components/SearchBox";
 import TrackList, { PlayAllButton } from "@/components/TrackList";
@@ -26,6 +29,11 @@ export default async function SearchPage({ searchParams }: Props) {
     ? await searchTracks(query, { page, pageSize: PAGE_SIZE }).catch(() => null)
     : null;
   const pages = result ? Math.ceil(result.total / PAGE_SIZE) : 0;
+  if (result && page === 1) {
+    const requestHeaders = await headers();
+    // Logged once per query; zero-result searches show what the library is missing.
+    after(() => track(requestHeaders, { type: "search", query: query.toLowerCase(), results: result.total, lang: locale }));
+  }
   const folded = fold(query);
   const composerHits = query.length > 1
     ? COMPOSERS.filter((composer) => [composer.name, composer.short, composer.zh].some((name) => fold(name).includes(folded) || folded.includes(fold(name)))).slice(0, 6)

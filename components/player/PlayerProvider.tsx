@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { analyticsAllowed, beacon } from "@/components/Analytics";
+import { useSession } from "@/components/SessionProvider";
 import type { PlayerTrack } from "./types";
 import PlayerBar from "./PlayerBar";
 
@@ -48,6 +50,9 @@ export function usePlayer() {
 
 export default function PlayerProvider({ children }: { children: ReactNode }) {
   const audio = useRef<HTMLAudioElement>(null);
+  const session = useSession();
+  // Seconds actually heard for the current track (seeking does not count).
+  const listened = useRef<{ track: PlayerTrack | null; seconds: number; last: number }>({ track: null, seconds: 0, last: 0 });
   const [queue, setQueue] = useState<PlayerTrack[]>([]);
   const [index, setIndex] = useState(-1);
   const [playing, setPlaying] = useState(false);
@@ -93,10 +98,34 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const radioIdsRef = useRef<Set<string>>(new Set());
+  const editorRef = useRef(false);
+  useEffect(() => {
+    radioIdsRef.current = radioIds;
+    editorRef.current = session.isEditor;
+  }, [radioIds, session.isEditor]);
+
+  /** Sends the listening time for the track that just stopped. */
+  const flushListening = useCallback(() => {
+    const { track, seconds } = listened.current;
+    listened.current = { track: null, seconds: 0, last: 0 };
+    if (!track || seconds < 5 || !analyticsAllowed(editorRef.current)) return;
+    beacon({ type: "listen", trackId: track.id, composer: track.composer_slug, via: radioIdsRef.current.has(track.id) ? "radio" : "listen", seconds: Math.round(seconds) });
+  }, []);
+
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") flushListening(); };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flushListening);
+    return () => { document.removeEventListener("visibilitychange", onHide); window.removeEventListener("pagehide", flushListening); };
+  }, [flushListening]);
+
   const start = useCallback((tracks: PlayerTrack[], at: number, offset = 0) => {
     const element = audio.current;
     const track = tracks[at];
     if (!element || !track) return;
+    flushListening();
+    listened.current = { track, seconds: 0, last: offset };
     setQueue(tracks);
     setIndex(at);
     setError(null);
@@ -111,7 +140,7 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       setPlaying(false);
     });
-  }, []);
+  }, [flushListening]);
 
   const play = useCallback((track: PlayerTrack, list?: PlayerTrack[]) => {
     const tracks = list?.length ? list : [track];
@@ -172,12 +201,13 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
   }, [current, start]);
 
   const close = useCallback(() => {
+    flushListening();
     audio.current?.pause();
     if (audio.current) audio.current.removeAttribute("src");
     setQueue([]);
     setIndex(-1);
     setPlaying(false);
-  }, []);
+  }, [flushListening]);
 
   // Lock-screen / headphone controls.
   useEffect(() => {
@@ -218,12 +248,15 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
         onTimeUpdate={(event) => {
           const seconds = event.currentTarget.currentTime;
           setTime(seconds);
+          const step = seconds - listened.current.last;
+          if (step > 0 && step < 3) listened.current.seconds += step;
+          listened.current.last = seconds;
           if (current && seconds > 30 && counted.current !== current.id) {
             counted.current = current.id;
-            void fetch("/api/tracks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: current.id }) }).catch(() => undefined);
+            void fetch("/api/tracks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: current.id, composer: current.composer_slug, via: radioIds.has(current.id) ? "radio" : "listen", editor: editorRef.current || !analyticsAllowed(false) }) }).catch(() => undefined);
           }
         }}
-        onEnded={next}
+        onEnded={() => { flushListening(); next(); }}
         onError={(event) => {
           if (!current) return;
           // Archives occasionally throttle bursts (HTTP 429); one delayed retry usually succeeds.

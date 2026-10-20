@@ -82,6 +82,11 @@ export async function GET(request: NextRequest) {
     const view = params.get("view") ?? "overview";
     if (view === "overview") return reply(await overview(), session.refreshedSession);
     if (view === "tracks") return reply(await listTracks(params), session.refreshedSession);
+    if (view === "stats") {
+      const days = [7, 30, 90].includes(Number(params.get("days"))) ? Number(params.get("days")) : 30;
+      const stats = await serviceJson("rpc/analytics_summary", { method: "POST", body: JSON.stringify({ p_days: days }) });
+      return reply(stats, session.refreshedSession);
+    }
     if (view === "users") {
       const users = await rpcAsUser(session.accessToken, "admin_list_users", { p_search: (params.get("q") ?? "").slice(0, 80), p_limit: 200 });
       return reply({ users, me: session.account.id }, session.refreshedSession);

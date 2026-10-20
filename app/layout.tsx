@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import type { ReactNode } from "react";
+import Analytics from "@/components/Analytics";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import I18nProvider from "@/components/I18nProvider";
@@ -41,6 +42,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <I18nProvider locale={locale}>
           <SessionProvider>
             <PlayerProvider>
+              <Analytics />
               <Header />
               <main>{children}</main>
               <Footer />

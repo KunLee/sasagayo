@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
 import PublishingPanel from "./PublishingPanel";
 import RunsPanel from "./RunsPanel";
+import StatsPanel from "./StatsPanel";
 import TrackDesk from "./TrackDesk";
 import UsersPanel from "./UsersPanel";
 import type { Overview } from "./types";
@@ -14,6 +15,7 @@ const TABS = [
   { id: "incoming", label: "Incoming" },
   { id: "review", label: "Review queue" },
   { id: "library", label: "All music" },
+  { id: "stats", label: "Statistics" },
   { id: "publishing", label: "Publishing" },
   { id: "users", label: "Users" },
   { id: "runs", label: "Discovery runs" },
@@ -106,6 +108,7 @@ export default function AdminClient() {
         {tab === "incoming" && <TrackDesk key="incoming" preset={{ since: "24h", status: "all", sort: "score" }} onChange={refresh} intro="Everything discovery found in the last 24 hours, best first. Check what was published automatically and decide on the rest." />}
         {tab === "review" && <TrackDesk key="review" preset={{ since: "all", status: "review", sort: "score" }} onChange={refresh} intro="Recordings waiting for a human decision. Listen, then publish or reject." />}
         {tab === "library" && <TrackDesk key="library" preset={{ since: "all", status: "published", sort: "newest" }} onChange={refresh} />}
+        {tab === "stats" && <StatsPanel />}
         {tab === "publishing" && overview && <PublishingPanel policy={overview.policy} onSaved={refresh} />}
         {tab === "users" && <UsersPanel />}
         {tab === "runs" && <RunsPanel runs={overview?.runs ?? []} onRan={refresh} />}

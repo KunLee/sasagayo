@@ -16,6 +16,7 @@
   --color-gold: var(--gold);
   --color-stage: var(--stage);
   --color-stage-ink: var(--stage-ink);
+  --color-chart: var(--chart);
 }
 
 :root {
@@ -33,6 +34,8 @@
   --gold: #a5803d;
   --stage: #1d1915;
   --stage-ink: #f4ecdf;
+  /* Chart marks: validated for lightness band, chroma and 3:1 contrast on --card. */
+  --chart: #a83a4a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -51,6 +54,7 @@
     --gold: #d2b06c;
     --stage: #0c0a09;
     --stage-ink: #f4ecdf;
+    --chart: #d9606c;
   }
 }
 

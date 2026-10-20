@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { track } from "@/lib/server/analytics";
 
 const ACCESS_COOKIE = "sasagayo-access-token";
 const REFRESH_COOKIE = "sasagayo-refresh-token";
@@ -223,6 +224,8 @@ export async function POST(request: NextRequest) {
         setSessionCookies(response, payload as SupabaseSession);
         await recordLogin(payload.access_token);
       }
+      // No user id: for an already-registered email Supabase returns a placeholder user.
+      after(() => track(request.headers, { type: "signup" }));
       return response;
     }
 
@@ -250,6 +253,8 @@ export async function POST(request: NextRequest) {
       const response = NextResponse.json({ user: session.user });
       setSessionCookies(response, session);
       await recordLogin(session.access_token);
+      const userId = (session.user as { id?: string } | undefined)?.id ?? null;
+      after(() => track(request.headers, { type: "login", user_id: userId }));
       return response;
     }
 
