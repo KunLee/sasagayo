@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "@/components/I18nProvider";
 import { useSession } from "@/components/SessionProvider";
 
 export default function AccountMenu() {
   const session = useSession();
+  const { t } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -22,7 +24,7 @@ export default function AccountMenu() {
   if (!session.account) {
     return (
       <Link href={`/signin?next=${encodeURIComponent(pathname)}`} className="flex h-10 shrink-0 items-center rounded-full px-3 text-sm font-medium text-ink-2 hover:text-accent">
-        Sign in
+        {t.nav.signIn}
       </Link>
     );
   }
@@ -37,7 +39,7 @@ export default function AccountMenu() {
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label={`Account menu for ${account.displayName}`}
+        aria-label={t.nav.accountMenu(account.displayName)}
         className="grid size-10 place-items-center rounded-full bg-ink font-serif text-sm font-semibold text-paper transition hover:bg-accent hover:text-accent-ink"
       >
         {initials}
@@ -49,12 +51,12 @@ export default function AccountMenu() {
             <p className="truncate text-xs text-muted">{account.email}</p>
           </div>
           <div className="my-1 h-px bg-line" />
-          <Link role="menuitem" href="/library" className={item}>My library</Link>
-          <Link role="menuitem" href="/account" className={item}>Account</Link>
-          {session.isEditor && <Link role="menuitem" href="/admin" className={`${item} text-accent`}>Editor desk</Link>}
+          <Link role="menuitem" href="/library" className={item}>{t.nav.library}</Link>
+          <Link role="menuitem" href="/account" className={item}>{t.nav.account}</Link>
+          {session.isEditor && <Link role="menuitem" href="/admin" className={`${item} text-accent`}>{t.nav.editor}</Link>}
           <div className="my-1 h-px bg-line" />
           <button role="menuitem" type="button" onClick={async () => { await session.signOut(); router.refresh(); }} className={`${item} w-full text-left text-muted`}>
-            Sign out
+            {t.nav.signOut}
           </button>
         </div>
       )}

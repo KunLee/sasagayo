@@ -32,6 +32,7 @@ export default function TrackDesk({ preset, intro, onChange }: { preset: Preset;
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -74,6 +75,23 @@ export default function TrackDesk({ preset, intro, onChange }: { preset: Preset;
       onChange();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Action failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveEdit(event: React.FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setBusy(true);
+    setNotice("");
+    try {
+      await adminPost({ action: "edit-track", id, title: form.get("title"), performer: form.get("performer"), composerSlug: form.get("composer") });
+      setEditing(null);
+      setNotice("Saved.");
+      await load();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not save.");
     } finally {
       setBusy(false);
     }
@@ -158,12 +176,32 @@ export default function TrackDesk({ preset, intro, onChange }: { preset: Preset;
                 </p>
               </div>
               <div className="col-span-3 flex flex-wrap gap-2 pl-[5.25rem] lg:col-span-1 lg:pl-0">
+                <button type="button" onClick={() => setEditing(editing === track.id ? null : track.id)} aria-expanded={editing === track.id} className="h-8 rounded-full border border-line px-3 text-xs font-semibold hover:border-accent hover:text-accent">
+                  {editing === track.id ? "Cancel" : "Edit"}
+                </button>
                 {DECISIONS[track.status].map((action) => (
                   <button key={action.status} type="button" disabled={busy} onClick={() => decide([track.id], action.status)} className={`h-8 rounded-full px-3 text-xs font-semibold transition disabled:opacity-50 ${action.primary ? "bg-ink text-paper hover:bg-accent hover:text-accent-ink" : "border border-line hover:border-accent hover:text-accent"}`}>
                     {action.label}
                   </button>
                 ))}
               </div>
+              {editing === track.id && (
+                <form onSubmit={(event) => saveEdit(event, track.id)} className="col-span-3 grid gap-3 rounded-2xl border border-line bg-card p-4 sm:grid-cols-[2fr_1.4fr_1fr_auto] sm:items-end lg:col-span-4">
+                  <label className="grid gap-1 text-xs font-semibold text-ink-2">Title
+                    <input name="title" defaultValue={track.title} required maxLength={300} className="h-10 rounded-xl border border-line bg-paper px-3 text-sm font-normal outline-none focus:border-accent" />
+                  </label>
+                  <label className="grid gap-1 text-xs font-semibold text-ink-2">Performer
+                    <input name="performer" defaultValue={track.performer ?? ""} maxLength={200} placeholder="Leave empty if unknown" className="h-10 rounded-xl border border-line bg-paper px-3 text-sm font-normal outline-none focus:border-accent" />
+                  </label>
+                  <label className="grid gap-1 text-xs font-semibold text-ink-2">Composer
+                    <select name="composer" defaultValue={track.composer_slug} className="h-10 rounded-xl border border-line bg-paper px-2 text-sm font-normal outline-none focus:border-accent">
+                      {[...COMPOSERS].sort((a, b) => a.short.localeCompare(b.short)).map((composer) => <option key={composer.slug} value={composer.slug}>{composer.name}</option>)}
+                    </select>
+                  </label>
+                  <button type="submit" disabled={busy} className="h-10 rounded-full bg-ink px-5 text-sm font-semibold text-paper hover:bg-accent hover:text-accent-ink disabled:opacity-50">Save</button>
+                  <p className="text-xs text-muted sm:col-span-4">Saving re-indexes search, re-groups movements into works, and marks this as an editor decision.</p>
+                </form>
+              )}
             </li>
           );
         })}

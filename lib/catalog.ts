@@ -1,3 +1,4 @@
+import { COMPOSER_BY_SLUG, COMPOSERS } from "./composers.ts";
 import { queryTokens } from "./search-tokens.ts";
 import { publicGet, publicRpc } from "./server/db.ts";
 
@@ -18,9 +19,25 @@ export type Track = {
   description: string;
   quality_score: number;
   published_at: string | null;
+  work_key: string | null;
+  work_title: string | null;
+  movement_number: number | null;
+  movement_title: string | null;
 };
 
-const FIELDS = "id,title,composer_slug,composer_name,performer,duration_seconds,stream_url,original_url,source,source_page_url,license_name,license_url,attribution,description,quality_score,published_at";
+export type Work = {
+  work_key: string;
+  work_title: string;
+  composer_slug: string;
+  composer_name: string;
+  performer: string | null;
+  movements: number;
+  duration_seconds: number;
+  quality_score: number;
+  first_track_id: string;
+};
+
+const FIELDS = "id,title,composer_slug,composer_name,performer,duration_seconds,stream_url,original_url,source,source_page_url,license_name,license_url,attribution,description,quality_score,published_at,work_key,work_title,movement_number,movement_title";
 const PUBLISHED = "status=eq.published";
 
 export async function searchTracks(query: string, options: { composer?: string; page?: number; pageSize?: number } = {}) {
@@ -94,4 +111,73 @@ export async function libraryStats() {
   let seconds = 0;
   for (const value of counts.values()) { tracks += value.tracks; seconds += value.seconds; }
   return { tracks, hours: Math.round(seconds / 3600), composers: [...counts.values()].filter((value) => value.tracks > 0).length };
+}
+
+/** A multi-movement work and its movements in order (null unless 2+ are published). */
+export async function getWork(key: string) {
+  if (!/^[0-9a-f]{12}$/.test(key)) return null;
+  const { rows } = await publicGet<Track[]>(`tracks?select=${FIELDS}&${PUBLISHED}&work_key=eq.${key}&order=movement_number,quality_score.desc,id&limit=120`);
+  // Two uncredited recordings of one work share a key; keep the best take of each movement.
+  const seen = new Set<number | null>();
+  const movements = rows.filter((track) => !seen.has(track.movement_number) && seen.add(track.movement_number));
+  return movements.length > 1 ? movements : null;
+}
+
+/** The strongest complete works across the library, at most one per composer. */
+export async function featuredWorks(limit = 6) {
+  const { rows } = await publicGet<Work[]>("published_works?select=*&movements=gte.3&order=quality_score.desc,movements.desc&limit=120", { revalidate: 3600 })
+    .catch(() => ({ rows: [] as Work[] }));
+  const seen = new Set<string>();
+  return rows.filter((work) => !seen.has(work.composer_slug) && seen.add(work.composer_slug)).slice(0, limit);
+}
+
+export async function composerWorks(slug: string, limit = 24) {
+  const { rows } = await publicGet<Work[]>(
+    `published_works?select=*&composer_slug=eq.${encodeURIComponent(slug)}&order=quality_score.desc,movements.desc&limit=${limit}`,
+  ).catch(() => ({ rows: [] as Work[] }));
+  return rows;
+}
+
+/**
+ * Tracks to keep playing after `seed`: its composer first, then contemporaries
+ * from the same era. Shuffled, one movement per work, nothing in `exclude`.
+ */
+export async function radioTracks(seed: Track | null, exclude: Set<string>, size = 10) {
+  const composer = seed ? COMPOSER_BY_SLUG.get(seed.composer_slug) : null;
+  const pool = composer ? [...new Set([composer.slug, ...COMPOSERS.filter((item) => item.era === composer.era).map((item) => item.slug)])] : [];
+  const filter = pool.length ? `&composer_slug=in.(${pool.join(",")})` : "";
+  const { rows } = await publicGet<Track[]>(
+    `tracks?select=${FIELDS}&${PUBLISHED}&quality_score=gte.68&duration_seconds=gte.120${filter}&order=quality_score.desc,play_count.desc&limit=300`,
+    { revalidate: 900 },
+  );
+  const bias = (track: Track) => (seed && track.composer_slug === seed.composer_slug ? 0.35 : 0);
+  const ranked = rows
+    .filter((track) => !exclude.has(track.id) && (!seed?.work_key || track.work_key !== seed.work_key))
+    .map((track) => ({ track, key: Math.random() - bias(track) }))
+    .sort((a, b) => a.key - b.key)
+    .map((item) => item.track);
+  const works = new Set<string>();
+  return ranked.filter((track) => !track.work_key || (!works.has(track.work_key) && works.add(track.work_key))).slice(0, size);
+}
+
+/** Every published recording id, for the sitemap. */
+export async function allPublishedIds() {
+  const ids: { id: string; published_at: string | null }[] = [];
+  for (let offset = 0; offset < 50_000; offset += 1000) {
+    const { rows } = await publicGet<{ id: string; published_at: string | null }[]>(
+      `tracks?select=id,published_at&${PUBLISHED}&order=id&limit=1000&offset=${offset}`,
+      { revalidate: 3600 },
+    );
+    ids.push(...rows);
+    if (rows.length < 1000) break;
+  }
+  return ids;
+}
+
+export async function allWorkKeys() {
+  const { rows } = await publicGet<{ work_key: string; published_at: string | null }[]>(
+    "published_works?select=work_key,published_at&limit=10000",
+    { revalidate: 3600 },
+  ).catch(() => ({ rows: [] as { work_key: string; published_at: string | null }[] }));
+  return rows;
 }

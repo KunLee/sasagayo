@@ -118,6 +118,11 @@ export function detectComposer(text: string): Composer | null {
   return best?.composer ?? null;
 }
 
+/** URL fragment for an era section on /composers. */
+export function eraAnchor(name: string) {
+  return name.toLowerCase().replace(/[^a-z]+/g, "-");
+}
+
 export function lifespan(composer: Composer) {
   return `${composer.born}–${composer.died}`;
 }

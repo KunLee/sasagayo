@@ -1,4 +1,5 @@
 import { COMPOSERS, fold, type Composer } from "../composers.ts";
+import { parseWork, workKey } from "./works.ts";
 
 export type Source = "wikimedia_commons" | "internet_archive";
 export type TrackStatus = "published" | "review" | "rejected" | "hidden";
@@ -47,6 +48,10 @@ export type TrackDraft = {
   dedupe_key: string;
   status: TrackStatus;
   search_text: string;
+  work_key: string | null;
+  work_title: string | null;
+  movement_number: number | null;
+  movement_title: string | null;
 };
 
 export const PUBLISH_AT = 60;
@@ -288,6 +293,18 @@ export function evaluate(raw: RawRecording, policy: PublishPolicy = DEFAULT_POLI
     dedupe_key: dedupeKey(composer.slug, title, performer),
     status,
     search_text: buildSearchText(title, composer, performer, description),
+    ...workFields(composer.slug, title, performer),
+  };
+}
+
+/** Movement grouping columns; all null for a standalone piece. */
+export function workFields(composerSlug: string, title: string, performer: string | null) {
+  const parts = parseWork(title);
+  return {
+    work_key: parts ? workKey(composerSlug, parts.workTitle, performer) : null,
+    work_title: parts?.workTitle.slice(0, 300) ?? null,
+    movement_number: parts?.movementNumber ?? null,
+    movement_title: parts?.movementTitle.slice(0, 300) || null,
   };
 }
 

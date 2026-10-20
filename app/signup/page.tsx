@@ -2,17 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import AuthCard from "@/components/auth/AuthCard";
 import AuthForm from "@/components/auth/AuthForm";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Create an account", robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t.auth.signUp.title, robots: { index: false } };
+}
 
 export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const { next } = await searchParams;
+  const { t } = await getI18n();
   return (
     <AuthCard
-      eyebrow="Free, always"
-      title="Create an account"
-      intro="Keep your library in sync across phone and computer. Listening never requires an account."
-      footer={<>Already have one? <Link href={`/signin${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-accent">Sign in</Link></>}
+      eyebrow={t.auth.signUp.eyebrow}
+      title={t.auth.signUp.title}
+      intro={t.auth.signUp.intro}
+      footer={<>{t.auth.signUp.footer} <Link href={`/signin${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold text-accent">{t.auth.signUp.footerLink}</Link></>}
     >
       <AuthForm mode="signup" next={next} />
     </AuthCard>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { Field, FormMessage, SubmitButton } from "@/components/auth/AuthCard";
+import { useI18n } from "@/components/I18nProvider";
 import { useSession } from "@/components/SessionProvider";
 
 type Tokens = { accessToken: string; refreshToken: string };
@@ -12,6 +13,7 @@ type Tokens = { accessToken: string; refreshToken: string };
 export default function ResetPasswordForm() {
   const router = useRouter();
   const session = useSession();
+  const { t } = useI18n();
   const [tokens, setTokens] = useState<Tokens | null | undefined>(undefined);
   const [linkError, setLinkError] = useState("");
   const [error, setError] = useState("");
@@ -33,7 +35,7 @@ export default function ResetPasswordForm() {
     event.preventDefault();
     if (!tokens) return;
     const form = new FormData(event.currentTarget);
-    if (form.get("password") !== form.get("confirm")) { setError("The two passwords don't match."); return; }
+    if (form.get("password") !== form.get("confirm")) { setError(t.auth.reset.mismatch); return; }
     setPending(true);
     setError("");
     const response = await fetch("/api/auth", {
@@ -43,26 +45,26 @@ export default function ResetPasswordForm() {
     });
     const data = await response.json().catch(() => ({}));
     setPending(false);
-    if (!response.ok) { setError(data.error ?? "Could not update your password."); return; }
+    if (!response.ok) { setError(data.error ?? t.auth.reset.failed); return; }
     await session.refresh();
     router.push("/account?updated=1");
   }
 
-  if (tokens === undefined) return <p className="text-sm text-muted">Checking your link…</p>;
+  if (tokens === undefined) return <p className="text-sm text-muted">{t.auth.reset.checking}</p>;
   if (!tokens) {
     return (
       <div className="grid gap-3 text-sm">
-        <FormMessage>{linkError || "This link is invalid or has expired."}</FormMessage>
-        <Link href="/forgot-password" className="font-semibold text-accent">Request a new link →</Link>
+        <FormMessage>{linkError || t.auth.reset.invalid}</FormMessage>
+        <Link href="/forgot-password" className="font-semibold text-accent">{t.auth.reset.requestNew}</Link>
       </div>
     );
   }
   return (
     <form onSubmit={submit} className="grid gap-4">
-      <Field label="New password" name="password" type="password" required minLength={8} autoComplete="new-password" hint="At least 8 characters." />
-      <Field label="Repeat it" name="confirm" type="password" required minLength={8} autoComplete="new-password" />
+      <Field label={t.auth.reset.newPassword} name="password" type="password" required minLength={8} autoComplete="new-password" hint={t.auth.passwordHint} />
+      <Field label={t.auth.reset.repeat} name="confirm" type="password" required minLength={8} autoComplete="new-password" />
       {error && <FormMessage>{error}</FormMessage>}
-      <SubmitButton pending={pending}>Save password</SubmitButton>
+      <SubmitButton pending={pending} pendingLabel={t.auth.oneMoment}>{t.auth.reset.submit}</SubmitButton>
     </form>
   );
 }

@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { useI18n } from "@/components/I18nProvider";
 import { useSession } from "@/components/SessionProvider";
+import type { Dictionary } from "@/lib/i18n";
 import { Field, FormMessage, SubmitButton } from "./AuthCard";
 
 type Mode = "signin" | "signup" | "forgot";
@@ -22,6 +24,7 @@ export function safeNext(next: string | undefined) {
 export default function AuthForm({ mode, next, notice }: { mode: Mode; next?: string; notice?: string }) {
   const router = useRouter();
   const session = useSession();
+  const { t } = useI18n();
   const [error, setError] = useState("");
   const [info, setInfo] = useState(notice ?? "");
   const [pending, setPending] = useState(false);
@@ -45,7 +48,7 @@ export default function AuthForm({ mode, next, notice }: { mode: Mode; next?: st
           : { action: "signup", email: form.email, password: form.password, displayName: form.displayName },
       );
       if (!ok) {
-        setError(friendly(data.error));
+        setError(friendly(data.error, t));
         return;
       }
       if (mode === "signup" && data.confirmationRequired) {
@@ -56,7 +59,7 @@ export default function AuthForm({ mode, next, notice }: { mode: Mode; next?: st
       router.push(safeNext(next));
       router.refresh();
     } catch {
-      setError("We couldn't reach the server. Check your connection and try again.");
+      setError(t.auth.errors.network);
     } finally {
       setPending(false);
     }
@@ -65,13 +68,11 @@ export default function AuthForm({ mode, next, notice }: { mode: Mode; next?: st
   if (done) {
     return (
       <div className="grid gap-3 text-sm leading-6">
-        <p className="font-serif text-2xl">Check your email</p>
+        <p className="font-serif text-2xl">{t.auth.checkEmail}</p>
         <p className="text-muted">
-          {mode === "signup"
-            ? "We've sent a confirmation link. Open it, then sign in — your saved music will be waiting."
-            : "If that address has an account, a link to choose a new password is on its way."}
+          {mode === "signup" ? t.auth.confirmSent : t.auth.resetSent}
         </p>
-        <Link href="/signin" className="font-semibold text-accent">Back to sign in →</Link>
+        <Link href="/signin" className="font-semibold text-accent">{t.auth.backToSignIn}</Link>
       </div>
     );
   }
@@ -79,31 +80,31 @@ export default function AuthForm({ mode, next, notice }: { mode: Mode; next?: st
   return (
     <form onSubmit={submit} className="grid gap-4">
       {info && <FormMessage tone="info">{info}</FormMessage>}
-      {mode === "signup" && <Field label="Your name" name="displayName" autoComplete="name" maxLength={60} placeholder="How should we greet you?" />}
-      <Field label="Email" name="email" type="email" required autoComplete="email" />
+      {mode === "signup" && <Field label={t.auth.name} name="displayName" autoComplete="name" maxLength={60} placeholder={t.auth.namePlaceholder} />}
+      <Field label={t.auth.email} name="email" type="email" required autoComplete="email" />
       {mode !== "forgot" && (
         <Field
-          label="Password"
+          label={t.auth.password}
           name="password"
           type="password"
           required
           minLength={mode === "signup" ? 8 : undefined}
           autoComplete={mode === "signup" ? "new-password" : "current-password"}
-          hint={mode === "signup" ? "At least 8 characters." : undefined}
+          hint={mode === "signup" ? t.auth.passwordHint : undefined}
         />
       )}
-      {mode === "signin" && <Link href="/forgot-password" className="-mt-2 justify-self-end text-xs text-muted hover:text-accent">Forgot password?</Link>}
+      {mode === "signin" && <Link href="/forgot-password" className="-mt-2 justify-self-end text-xs text-muted hover:text-accent">{t.auth.forgot}</Link>}
       {error && <FormMessage>{error}</FormMessage>}
-      <SubmitButton pending={pending}>{mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Send reset link"}</SubmitButton>
+      <SubmitButton pending={pending} pendingLabel={t.auth.oneMoment}>{mode === "signin" ? t.auth.signIn.submit : mode === "signup" ? t.auth.signUp.submit : t.auth.forgotPage.submit}</SubmitButton>
     </form>
   );
 }
 
-function friendly(message: unknown) {
+function friendly(message: unknown, t: Dictionary) {
   const text = typeof message === "string" ? message : "";
-  if (/invalid login credentials/i.test(text)) return "That email and password don't match an account.";
-  if (/email not confirmed/i.test(text)) return "Please confirm your email first — check your inbox for our link.";
-  if (/already registered|already been registered/i.test(text)) return "An account with this email already exists. Try signing in.";
-  if (/rate limit|too many/i.test(text)) return "Too many attempts. Please wait a minute and try again.";
-  return text || "Something went wrong. Please try again.";
+  if (/invalid login credentials/i.test(text)) return t.auth.errors.credentials;
+  if (/email not confirmed/i.test(text)) return t.auth.errors.unconfirmed;
+  if (/already registered|already been registered/i.test(text)) return t.auth.errors.exists;
+  if (/rate limit|too many/i.test(text)) return t.auth.errors.rateLimit;
+  return t.locale === "zh" ? t.auth.errors.generic : text || t.auth.errors.generic;
 }

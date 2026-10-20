@@ -24,10 +24,10 @@ export function Field({ label, hint, ...props }: React.InputHTMLAttributes<HTMLI
   );
 }
 
-export function SubmitButton({ pending, children }: { pending: boolean; children: ReactNode }) {
+export function SubmitButton({ pending, pendingLabel = "…", children }: { pending: boolean; pendingLabel?: string; children: ReactNode }) {
   return (
     <button type="submit" disabled={pending} className="mt-2 h-12 w-full rounded-xl bg-ink font-semibold text-paper transition hover:bg-accent hover:text-accent-ink disabled:opacity-60">
-      {pending ? "One moment…" : children}
+      {pending ? pendingLabel : children}
     </button>
   );
 }

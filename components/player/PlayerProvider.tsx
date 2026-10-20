@@ -21,7 +21,22 @@ type PlayerState = {
   seek: (seconds: number) => void;
   enqueue: (track: PlayerTrack) => void;
   close: () => void;
+  /** When the queue runs out, keep going with similar recordings. */
+  radio: boolean;
+  setRadio: (enabled: boolean) => void;
+  startRadio: (track: PlayerTrack) => void;
+  /** Ids of queue entries that radio added. */
+  radioIds: Set<string>;
 };
+
+const RADIO_KEY = "sasagayo:radio";
+
+async function fetchRadio(seedId: string, exclude: string[]) {
+  const params = new URLSearchParams({ seed: seedId, exclude: exclude.slice(-300).join(",") });
+  const response = await fetch(`/api/radio?${params}`);
+  if (!response.ok) return [];
+  return ((await response.json()) as { tracks: PlayerTrack[] }).tracks;
+}
 
 const PlayerContext = createContext<PlayerState | null>(null);
 
@@ -43,7 +58,40 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
   const counted = useRef<string | null>(null);
   const pendingSeek = useRef<number | null>(null);
   const retried = useRef<string | null>(null);
+  const [radio, setRadioState] = useState(true);
+  const [radioIds, setRadioIds] = useState<Set<string>>(new Set());
+  const extending = useRef<Promise<PlayerTrack[]> | null>(null);
   const current = index >= 0 ? queue[index] ?? null : null;
+
+  // Remember the radio preference per browser.
+  useEffect(() => {
+    try {
+      // Reading storage is only possible after mount.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (window.localStorage.getItem(RADIO_KEY) === "off") setRadioState(false);
+    } catch {
+      // Storage unavailable: keep the default.
+    }
+  }, []);
+  const setRadio = useCallback((enabled: boolean) => {
+    setRadioState(enabled);
+    try { window.localStorage.setItem(RADIO_KEY, enabled ? "on" : "off"); } catch { /* ignore */ }
+  }, []);
+
+  /** Appends radio picks after the current queue (deduplicated, at most one request at a time). */
+  const extend = useCallback((list: PlayerTrack[], seed: PlayerTrack) => {
+    if (!extending.current) {
+      extending.current = fetchRadio(seed.id, list.map((track) => track.id))
+        .catch(() => [] as PlayerTrack[])
+        .finally(() => { extending.current = null; });
+    }
+    return extending.current.then((picks) => {
+      const known = new Set(list.map((track) => track.id));
+      const fresh = picks.filter((track) => !known.has(track.id));
+      if (fresh.length) setRadioIds((ids) => new Set([...ids, ...fresh.map((track) => track.id)]));
+      return [...list, ...fresh];
+    });
+  }, []);
 
   const start = useCallback((tracks: PlayerTrack[], at: number, offset = 0) => {
     const element = audio.current;
@@ -80,9 +128,32 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
   }, [current]);
 
   const next = useCallback(() => {
-    if (index + 1 < queue.length) start(queue, index + 1);
-    else { audio.current?.pause(); setPlaying(false); }
-  }, [index, queue, start]);
+    if (index + 1 < queue.length) { start(queue, index + 1); return; }
+    if (radio && current) {
+      void extend(queue, current).then((longer) => {
+        if (longer.length > index + 1) start(longer, index + 1);
+        else setPlaying(false);
+      });
+      return;
+    }
+    audio.current?.pause();
+    setPlaying(false);
+  }, [index, queue, start, radio, current, extend]);
+
+  const startRadio = useCallback((track: PlayerTrack) => {
+    setRadio(true);
+    setRadioIds(new Set());
+    start([track], 0);
+    void extend([track], track).then((longer) => setQueue((items) => (items[0]?.id === track.id && items.length === 1 ? longer : items)));
+  }, [setRadio, start, extend]);
+
+  // Fetch the next radio picks while the last queued track plays, so the hand-over is instant.
+  useEffect(() => {
+    if (!radio || !current || index !== queue.length - 1) return;
+    void extend(queue, current).then((longer) => {
+      if (longer.length > queue.length) setQueue((items) => (items.length === queue.length ? longer : items));
+    });
+  }, [radio, current, index, queue, extend]);
 
   const previous = useCallback(() => {
     const element = audio.current;
@@ -118,15 +189,16 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
     });
     navigator.mediaSession.setActionHandler("play", toggle);
     navigator.mediaSession.setActionHandler("pause", toggle);
-    navigator.mediaSession.setActionHandler("nexttrack", index + 1 < queue.length ? next : null);
+    navigator.mediaSession.setActionHandler("nexttrack", index + 1 < queue.length || radio ? next : null);
     navigator.mediaSession.setActionHandler("previoustrack", previous);
     navigator.mediaSession.setActionHandler("seekto", (details) => details.seekTime != null && seek(details.seekTime));
-  }, [current, index, queue.length, next, previous, seek, toggle]);
+  }, [current, index, queue.length, next, previous, seek, toggle, radio]);
 
   const value = useMemo<PlayerState>(() => ({
     queue, index, current, playing, loading, error, time, duration,
     play, playAll, toggle, next, previous, seek, enqueue, close,
-  }), [queue, index, current, playing, loading, error, time, duration, play, playAll, toggle, next, previous, seek, enqueue, close]);
+    radio, setRadio, startRadio, radioIds,
+  }), [queue, index, current, playing, loading, error, time, duration, play, playAll, toggle, next, previous, seek, enqueue, close, radio, setRadio, startRadio, radioIds]);
 
   return (
     <PlayerContext.Provider value={value}>
@@ -167,8 +239,8 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
             return;
           }
           setLoading(false);
-          setError(`“${current.title}” could not be loaded from its archive.`);
-          if (index + 1 < queue.length) window.setTimeout(next, 1500);
+          setError(`“${current.title}” — ${document.documentElement.lang.startsWith("zh") ? "无法从档案馆加载。" : "could not be loaded from its archive."}`);
+          if (index + 1 < queue.length || radio) window.setTimeout(next, 1500);
         }}
       />
       <PlayerBar />

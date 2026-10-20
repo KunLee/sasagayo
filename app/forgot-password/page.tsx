@@ -2,16 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import AuthCard from "@/components/auth/AuthCard";
 import AuthForm from "@/components/auth/AuthForm";
+import { getI18n } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "Reset your password", robots: { index: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t.auth.forgotPage.title, robots: { index: false } };
+}
 
-export default function ForgotPasswordPage() {
+export default async function ForgotPasswordPage() {
+  const { t } = await getI18n();
   return (
     <AuthCard
-      eyebrow="Account"
-      title="Forgot your password?"
-      intro="Enter your email and we'll send a link to choose a new one."
-      footer={<Link href="/signin" className="font-semibold text-accent">Back to sign in</Link>}
+      eyebrow={t.auth.forgotPage.eyebrow}
+      title={t.auth.forgotPage.title}
+      intro={t.auth.forgotPage.intro}
+      footer={<Link href="/signin" className="font-semibold text-accent">{t.auth.forgotPage.back}</Link>}
     >
       <AuthForm mode="forgot" />
     </AuthCard>

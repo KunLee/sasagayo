@@ -2,7 +2,7 @@ import { revalidateTag } from "next/cache";
 import { NextRequest } from "next/server";
 import { COMPOSER_BY_SLUG } from "@/lib/composers";
 import { applyPolicyToQueue, loadPolicy, savePolicy } from "@/lib/discovery/policy";
-import type { PublishPolicy } from "@/lib/discovery/quality";
+import { buildSearchText, dedupeKey, workFields, type PublishPolicy } from "@/lib/discovery/quality";
 import { runDiscovery } from "@/lib/discovery/run";
 import { queryTokens } from "@/lib/search-tokens";
 import { currentAccount, reply, rpcAsUser } from "@/lib/server/as-user";
@@ -95,6 +95,10 @@ export async function GET(request: NextRequest) {
 
 type Body = {
   action?: string;
+  id?: string;
+  title?: string;
+  performer?: string;
+  composerSlug?: string;
   ids?: string[];
   status?: string;
   policy?: Partial<PublishPolicy>;
@@ -129,6 +133,38 @@ export async function POST(request: NextRequest) {
         });
         revalidateTag("tracks", "max");
         return done({ ok: true, updated: ids.length });
+      }
+      case "edit-track": {
+        if (!body.id || !/^[0-9a-f-]{36}$/i.test(body.id)) return fail("Choose a recording.");
+        const title = (body.title ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+        const performer = (body.performer ?? "").replace(/\s+/g, " ").trim().slice(0, 200) || null;
+        const composer = COMPOSER_BY_SLUG.get(body.composerSlug ?? "");
+        if (!title) return fail("A title is required.");
+        if (!composer) return fail("Choose a composer.");
+        const [current] = await serviceJson<{ performer: string | null; description: string; attribution: string }[]>(`tracks?id=eq.${body.id}&select=performer,description,attribution`);
+        if (!current) return fail("Recording not found.", 404);
+        // Keep the licence and source parts of the credit; only the performer part changes.
+        const credit = current.attribution.replace(/^Performed by [^·]+ · /, "");
+        const now = new Date().toISOString();
+        await serviceJson(`tracks?id=eq.${body.id}`, {
+          method: "PATCH",
+          headers: { Prefer: "return=minimal" },
+          body: JSON.stringify({
+            title,
+            performer,
+            composer_slug: composer.slug,
+            composer_name: composer.name,
+            attribution: (performer ? `Performed by ${performer} · ${credit}` : credit).slice(0, 1000),
+            dedupe_key: dedupeKey(composer.slug, title, performer),
+            search_text: buildSearchText(title, composer, performer, current.description),
+            ...workFields(composer.slug, title, performer),
+            reviewed_by: editorId,
+            reviewed_at: now,
+            updated_at: now,
+          }),
+        });
+        revalidateTag("tracks", "max");
+        return done({ ok: true });
       }
       case "run-discovery": {
         const summary = await runDiscovery({ trigger: "editor", budgetMs: 90_000 });

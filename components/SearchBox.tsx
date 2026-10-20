@@ -4,14 +4,17 @@ import { LoaderCircle, Play, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useI18n } from "@/components/I18nProvider";
 import { usePlayer } from "@/components/player/PlayerProvider";
 import type { PlayerTrack } from "@/components/player/types";
+import { composerNameBySlug } from "@/lib/i18n";
 
 type Props = { size?: "header" | "hero"; defaultValue?: string; autoFocus?: boolean };
 
 export default function SearchBox({ size = "header", defaultValue = "", autoFocus = false }: Props) {
   const router = useRouter();
   const player = usePlayer();
+  const { t, locale } = useI18n();
   const listId = useId();
   const [query, setQuery] = useState(defaultValue);
   const [results, setResults] = useState<PlayerTrack[]>([]);
@@ -61,7 +64,7 @@ export default function SearchBox({ size = "header", defaultValue = "", autoFocu
     <form ref={box} role="search" onSubmit={submit} className="relative w-full">
       <label className={`flex items-center gap-3 rounded-full border border-line bg-card transition focus-within:border-accent focus-within:shadow-[0_0_0_4px_var(--accent-soft)] ${hero ? "h-16 px-6 shadow-[0_20px_50px_-30px_rgb(0_0_0/0.35)]" : "h-10 px-4"}`}>
         <Search className={`${hero ? "size-5" : "size-4"} shrink-0 text-muted`} aria-hidden />
-        <span className="sr-only">Search the library</span>
+        <span className="sr-only">{t.search.label}</span>
         <input
           value={query}
           onChange={(event) => { setQuery(event.target.value); setOpen(true); }}
@@ -69,7 +72,7 @@ export default function SearchBox({ size = "header", defaultValue = "", autoFocu
           onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
           autoFocus={autoFocus}
           enterKeyHint="search"
-          placeholder={hero ? "Try “Chopin nocturne”, “Bach cello”, or 肖邦…" : "Search composers, works, performers"}
+          placeholder={hero ? t.search.heroPlaceholder : t.search.headerPlaceholder}
           role="combobox"
           aria-autocomplete="list"
           aria-controls={listId}
@@ -79,7 +82,7 @@ export default function SearchBox({ size = "header", defaultValue = "", autoFocu
         {loading && <LoaderCircle className="size-4 shrink-0 animate-spin text-muted" aria-hidden />}
         {hero && (
           <button type="submit" className="hidden h-10 shrink-0 rounded-full bg-ink px-5 text-sm font-semibold text-paper transition hover:bg-accent sm:block">
-            Search
+            {t.search.button}
           </button>
         )}
       </label>
@@ -99,17 +102,17 @@ export default function SearchBox({ size = "header", defaultValue = "", autoFocu
                   </button>
                   <Link href={`/track/${track.id}`} onClick={() => setOpen(false)} className="min-w-0 flex-1 rounded-lg px-1 py-2 hover:bg-paper-2">
                     <span className="block truncate font-serif text-base leading-tight">{track.title}</span>
-                    <span className="block truncate text-xs text-muted">{track.composer_name}{track.performer ? ` · ${track.performer}` : ""}</span>
+                    <span className="block truncate text-xs text-muted">{composerNameBySlug(track.composer_slug, locale, track.composer_name)}{track.performer ? ` · ${track.performer}` : ""}</span>
                   </Link>
                 </li>
               ))}
             </ul>
           ) : (
-            !loading && <p className="px-5 py-4 text-sm text-muted">No recordings match “{query.trim()}” yet.</p>
+            !loading && <p className="px-5 py-4 text-sm text-muted">{t.search.noMatches(query.trim())}</p>
           )}
           {total > results.length && (
             <button type="submit" className="block w-full border-t border-line px-5 py-3 text-left text-sm font-semibold text-accent hover:bg-paper-2">
-              See all {total} results →
+              {t.search.seeAll(total)}
             </button>
           )}
         </div>
