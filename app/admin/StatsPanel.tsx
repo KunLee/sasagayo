@@ -152,15 +152,16 @@ function Plain({ label, value }: { label: string; value: number }) {
 
 /** Single-series daily bars: thin marks, 2px gaps, rounded data ends, hover/focus tooltip, table view. */
 function DailyBars({ title, unit, data }: { title: string; unit: string; data: { day: string; value: number; extra: string }[] }) {
-  const max = Math.max(1, ...data.map((point) => point.value));
-  const ticks = [max, Math.round(max / 2), 0];
+  // An even scale top keeps the midline label exact (e.g. 4 / 2 / 0, never 3 / "2" / 0).
+  const max = Math.max(2, Math.ceil(Math.max(...data.map((point) => point.value), 0) / 2) * 2);
+  const ticks = [max, max / 2, 0];
   const labelEvery = Math.ceil(data.length / 6);
   const total = data.reduce((sum, point) => sum + point.value, 0);
   return (
     <figure className="rounded-2xl border border-line bg-card p-5">
       <figcaption className="flex items-baseline justify-between gap-3">
         <span className="font-serif text-2xl">{title}</span>
-        <span className="text-xs text-muted">{fmt(total)} {unit}</span>
+        <span className="text-xs text-muted">{fmt(total)} in total</span>
       </figcaption>
       <div className="mt-4 grid grid-cols-[2.5rem_1fr] gap-2">
         <div className="flex h-44 flex-col justify-between text-right text-[10px] tabular-nums text-muted" aria-hidden>
