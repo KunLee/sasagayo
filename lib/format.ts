@@ -13,7 +13,7 @@ export function formatTotal(totalSeconds: number) {
   return `${hours} hr ${minutes % 60} min`;
 }
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.APP_ORIGIN ?? "https://ai.kumind.com.au").replace(/\/$/, "");
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.APP_ORIGIN ?? "https://sasagayo.kumind.com.au").replace(/\/$/, "");
 
 export function sourceLabel(source: string) {
   return source === "internet_archive" ? "Internet Archive" : "Wikimedia Commons";

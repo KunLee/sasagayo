@@ -40,7 +40,7 @@ export default function AccountMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={t.nav.accountMenu(account.displayName)}
-        className="rounded-full ring-offset-2 ring-offset-paper transition hover:ring-2 hover:ring-accent"
+        className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full ring-offset-2 ring-offset-paper transition hover:ring-2 hover:ring-accent"
       >
         <Avatar name={account.displayName} url={account.avatarUrl} size={40} />
       </button>

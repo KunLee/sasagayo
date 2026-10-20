@@ -125,7 +125,7 @@ function ProfileEditor({ account, passwordUpdated }: { account: Account; passwor
               <Field label={t.editProfile.displayName} name="displayName" defaultValue={account.displayName} required maxLength={60} autoComplete="name" />
             </div>
             <Field label={t.editProfile.motto} name="motto" defaultValue={account.motto} maxLength={80} placeholder={t.editProfile.mottoPlaceholder} />
-            <label className="grid gap-1.5">
+            <label className="grid content-start gap-1.5">
               <span className="text-xs font-semibold text-ink-2">{t.editProfile.bio}</span>
               <textarea name="bio" defaultValue={account.bio} maxLength={280} rows={3} placeholder={t.editProfile.bioPlaceholder} className="rounded-xl border border-line bg-paper px-4 py-3 text-base outline-none transition focus:border-accent focus:shadow-[0_0_0_4px_var(--accent-soft)]" />
             </label>

@@ -15,8 +15,9 @@ export default function AuthCard({ eyebrow, title, intro, children, footer }: { 
 }
 
 export function Field({ label, hint, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string }) {
+  // content-start: in a multi-column form, a taller neighbour must not stretch this field.
   return (
-    <label className="grid gap-1.5">
+    <label className="grid content-start gap-1.5">
       <span className="text-xs font-semibold text-ink-2">{label}</span>
       <input {...props} className="h-12 rounded-xl border border-line bg-paper px-4 text-base outline-none transition focus:border-accent focus:shadow-[0_0_0_4px_var(--accent-soft)]" />
       {hint && <span className="text-xs text-muted">{hint}</span>}

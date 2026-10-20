@@ -7,7 +7,7 @@ type Summary = { type?: string; thumbnail?: { source?: string }; extract?: strin
 async function summary(host: string, title: string, language?: string): Promise<Summary | null> {
   try {
     const response = await fetch(`https://${host}/api/rest_v1/page/summary/${encodeURIComponent(title)}?redirect=true`, {
-      headers: { "User-Agent": "Sasagayo/3.0 (https://ai.kumind.com.au)", Accept: "application/json", ...(language ? { "Accept-Language": language } : {}) },
+      headers: { "User-Agent": "Sasagayo/3.0 (https://sasagayo.kumind.com.au)", Accept: "application/json", ...(language ? { "Accept-Language": language } : {}) },
       next: { revalidate: 604_800, tags: ["composer-info"] },
       signal: AbortSignal.timeout(6_000),
     });

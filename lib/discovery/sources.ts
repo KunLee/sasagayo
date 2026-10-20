@@ -1,7 +1,7 @@
 import { COMPOSERS, detectComposer, type Composer } from "../composers.ts";
 import type { RawRecording } from "./quality.ts";
 
-export const USER_AGENT = "Sasagayo/3.0 (https://ai.kumind.com.au; classical library crawler)";
+export const USER_AGENT = "Sasagayo/3.0 (https://sasagayo.kumind.com.au; classical library crawler)";
 const PAGE_SIZE = 50;
 
 type Meta = Record<string, { value?: string } | undefined>;

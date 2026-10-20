@@ -3,8 +3,9 @@ export default function Avatar({ name, url, size = 40, className = "" }: { name:
   const initials = name.trim().split(/\s+/).map((part) => Array.from(part)[0] ?? "").join("").slice(0, 2).toUpperCase() || "♪";
   return (
     <span
-      className={`inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-ink font-serif font-semibold text-paper ${className}`}
-      style={{ width: size, height: size, fontSize: Math.max(12, size * 0.38) }}
+      // align-middle: an inline box on the text baseline gains a few pixels below it and turns oval.
+      className={`inline-grid aspect-square shrink-0 place-items-center overflow-hidden rounded-full bg-ink align-middle font-serif font-semibold leading-none text-paper ${className}`}
+      style={{ width: size, height: size, minWidth: size, fontSize: Math.max(12, size * 0.38) }}
       aria-hidden
     >
       {url

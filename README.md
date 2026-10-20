@@ -76,7 +76,7 @@ are written through `set_my_library()`. Signed-out visitors keep a browser-only
 library that is merged into their account on first sign-in.
 
 Supabase Auth settings to check in the dashboard (Authentication → URL
-Configuration): add `https://ai.kumind.com.au/**` to **Redirect URLs** so
+Configuration): add `https://sasagayo.kumind.com.au/**` to **Redirect URLs** so
 confirmation and password-reset emails return to the site. The built-in email
 sender is heavily rate-limited; configure custom SMTP before inviting many users.
 
