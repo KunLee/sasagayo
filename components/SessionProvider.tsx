@@ -9,6 +9,12 @@ export type Account = {
   displayName: string;
   status: "active" | "suspended";
   role: "admin" | "moderator" | "member";
+  handle: string;
+  motto: string;
+  bio: string;
+  avatarUrl: string | null;
+  favoriteComposers: string[];
+  libraryPublic: boolean;
 };
 
 type Session = {

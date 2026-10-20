@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import Avatar from "@/components/Avatar";
 import { useI18n } from "@/components/I18nProvider";
 import { useSession } from "@/components/SessionProvider";
 
@@ -30,7 +31,6 @@ export default function AccountMenu() {
   }
 
   const { account } = session;
-  const initials = account.displayName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "♪";
   const item = "block rounded-lg px-3 py-2 text-sm hover:bg-paper-2";
   return (
     <div ref={box} className="relative shrink-0">
@@ -40,9 +40,9 @@ export default function AccountMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={t.nav.accountMenu(account.displayName)}
-        className="grid size-10 place-items-center rounded-full bg-ink font-serif text-sm font-semibold text-paper transition hover:bg-accent hover:text-accent-ink"
+        className="rounded-full ring-offset-2 ring-offset-paper transition hover:ring-2 hover:ring-accent"
       >
-        {initials}
+        <Avatar name={account.displayName} url={account.avatarUrl} size={40} />
       </button>
       {open && (
         <div role="menu" className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-line bg-card p-2 shadow-2xl" onClick={() => setOpen(false)}>
@@ -51,6 +51,7 @@ export default function AccountMenu() {
             <p className="truncate text-xs text-muted">{account.email}</p>
           </div>
           <div className="my-1 h-px bg-line" />
+          <Link role="menuitem" href={`/u/${account.handle}`} className={item}>{t.profile.myProfile}</Link>
           <Link role="menuitem" href="/library" className={item}>{t.nav.library}</Link>
           <Link role="menuitem" href="/account" className={item}>{t.nav.account}</Link>
           {session.isEditor && <Link role="menuitem" href="/admin" className={`${item} text-accent`}>{t.nav.editor}</Link>}

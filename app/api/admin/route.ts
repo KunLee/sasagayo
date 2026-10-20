@@ -6,7 +6,7 @@ import { buildSearchText, dedupeKey, workFields, type PublishPolicy } from "@/li
 import { runDiscovery } from "@/lib/discovery/run";
 import { queryTokens } from "@/lib/search-tokens";
 import { currentAccount, reply, rpcAsUser } from "@/lib/server/as-user";
-import { inList, serviceFetch, serviceJson } from "@/lib/server/db";
+import { dbConfig, inList, serviceFetch, serviceJson } from "@/lib/server/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,6 +82,10 @@ export async function GET(request: NextRequest) {
     const view = params.get("view") ?? "overview";
     if (view === "overview") return reply(await overview(), session.refreshedSession);
     if (view === "tracks") return reply(await listTracks(params), session.refreshedSession);
+    if (view === "reports") {
+      const reports = await rpcAsUser(session.accessToken, "admin_profile_reports");
+      return reply({ reports }, session.refreshedSession);
+    }
     if (view === "stats") {
       const days = [7, 30, 90].includes(Number(params.get("days"))) ? Number(params.get("days")) : 30;
       const stats = await serviceJson("rpc/analytics_summary", { method: "POST", body: JSON.stringify({ p_days: days }) });
@@ -109,6 +113,8 @@ type Body = {
   policy?: Partial<PublishPolicy>;
   applyToQueue?: boolean;
   userId?: string;
+  reportId?: string;
+  moderation?: string;
   role?: string;
   reason?: string;
 };
@@ -188,6 +194,28 @@ export async function POST(request: NextRequest) {
         const applied = body.applyToQueue ? await applyPolicyToQueue(policy) : null;
         if (applied?.published) revalidateTag("tracks", "max");
         return done({ ok: true, policy, applied });
+      }
+      case "moderate-profile": {
+        if (!body.userId || !/^[0-9a-f-]{36}$/i.test(body.userId)) return fail("Choose a user.");
+        const reason = (body.reason ?? "").trim();
+        if (reason.length < 5) return fail("Please give a short reason (5+ characters) for the audit log.");
+        if (!["remove_avatar", "clear_text", "reset_handle"].includes(body.moderation ?? "")) return fail("Unknown moderation action.");
+        const removed = await rpcAsUser<string | null>(session.accessToken, "admin_moderate_profile", { p_user_id: body.userId, p_action: body.moderation, p_reason: reason });
+        const path = removed?.split("/storage/v1/object/public/avatars/")[1];
+        if (path) {
+          const { url, secretKey } = dbConfig();
+          await fetch(`${url}/storage/v1/object/avatars/${path}`, {
+            method: "DELETE",
+            headers: { apikey: secretKey ?? "", ...(secretKey?.startsWith("sb_secret_") ? {} : { Authorization: `Bearer ${secretKey}` }) },
+          }).catch(() => undefined);
+        }
+        return done({ ok: true });
+      }
+      case "resolve-report": {
+        if (!body.reportId || !/^[0-9a-f-]{36}$/i.test(body.reportId)) return fail("Choose a report.");
+        if (body.status !== "resolved" && body.status !== "dismissed") return fail("Unknown resolution.");
+        await rpcAsUser(session.accessToken, "admin_resolve_report", { p_report_id: body.reportId, p_status: body.status, p_reason: (body.reason ?? "").trim() || `Report ${body.status} in the editor desk` });
+        return done({ ok: true });
       }
       case "set-role":
       case "set-user-status": {

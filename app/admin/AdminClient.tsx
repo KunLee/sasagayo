@@ -5,6 +5,7 @@ import { LoaderCircle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/components/SessionProvider";
 import PublishingPanel from "./PublishingPanel";
+import ReportsPanel from "./ReportsPanel";
 import RunsPanel from "./RunsPanel";
 import StatsPanel from "./StatsPanel";
 import TrackDesk from "./TrackDesk";
@@ -18,6 +19,7 @@ const TABS = [
   { id: "stats", label: "Statistics" },
   { id: "publishing", label: "Publishing" },
   { id: "users", label: "Users" },
+  { id: "reports", label: "Reports" },
   { id: "runs", label: "Discovery runs" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
@@ -111,6 +113,7 @@ export default function AdminClient() {
         {tab === "stats" && <StatsPanel />}
         {tab === "publishing" && overview && <PublishingPanel policy={overview.policy} onSaved={refresh} />}
         {tab === "users" && <UsersPanel />}
+        {tab === "reports" && <ReportsPanel onChange={refresh} />}
         {tab === "runs" && <RunsPanel runs={overview?.runs ?? []} onRan={refresh} />}
       </div>
     </div>

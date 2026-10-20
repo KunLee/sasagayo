@@ -2,7 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { dbConfig } from "./db.ts";
 import { authenticateRequest, setSessionCookies } from "./supabase-session.ts";
 
-export type Account = { id: string; email: string; displayName: string; status: "active" | "suspended"; role: "admin" | "moderator" | "member"; createdAt: string };
+export type Account = {
+  id: string; email: string; displayName: string; status: "active" | "suspended"; role: "admin" | "moderator" | "member"; createdAt: string;
+  handle: string; motto: string; bio: string; avatarUrl: string | null; favoriteComposers: string[]; libraryPublic: boolean;
+};
 
 /** PostgREST call made as the signed-in user, so row-level security applies. */
 export async function asUser(token: string, path: string, init: RequestInit = {}) {

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { adminPost } from "./types";
 
 type User = {
-  id: string; email: string; display_name: string; account_status: "active" | "suspended";
+  id: string; email: string; handle: string; display_name: string; account_status: "active" | "suspended";
   role: "admin" | "moderator" | "member"; library_size: number; created_at: string; last_sign_in_at: string | null;
 };
 
@@ -70,7 +70,7 @@ export default function UsersPanel() {
               const self = user.id === me;
               return (
                 <tr key={user.id} className={user.account_status === "suspended" ? "text-muted" : ""}>
-                  <td className="py-3"><span className="block font-medium">{user.display_name}{self && <span className="ml-2 text-xs text-muted">(you)</span>}</span><span className="text-xs text-muted">{user.email}</span></td>
+                  <td className="py-3"><a href={`/u/${user.handle}`} target="_blank" rel="noreferrer" className="block font-medium hover:text-accent hover:underline">{user.display_name}{self && <span className="ml-2 text-xs text-muted">(you)</span>}</a><span className="text-xs text-muted">@{user.handle} · {user.email}</span></td>
                   <td>{new Date(user.created_at).toLocaleDateString()}</td>
                   <td>{user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : "—"}</td>
                   <td className="tabular-nums">{user.library_size}</td>
