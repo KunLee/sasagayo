@@ -16,6 +16,13 @@ const DECISIONS: Record<Status, { status: Status; label: string; primary?: boole
   rejected: [{ status: "published", label: "Publish", primary: true }, { status: "review", label: "To review" }],
   hidden: [{ status: "published", label: "Restore", primary: true }],
 };
+/** Notes that caused an automatic rejection (score capped at 20), or all notes for low scores. */
+function hardReasons(track: AdminTrack) {
+  const hard = /not a recording|synthesised|MIDI|excerpt or teaching|spoken word|remix|library arrangement|stem|too short|licence not reusable|degraded/i;
+  const notes = track.quality_notes.filter((note) => hard.test(note));
+  return notes.length ? notes : ["low quality score"];
+}
+
 const STATUS_STYLE: Record<Status, string> = {
   published: "bg-accent text-accent-ink",
   review: "bg-gold/25 text-ink",
@@ -66,6 +73,20 @@ export default function TrackDesk({ preset, intro, onChange }: { preset: Preset;
   }
 
   async function decide(ids: string[], status: Status) {
+    if (status === "published") {
+      // Publishing something the robot rejected needs an explicit, informed yes.
+      const flagged = (data?.tracks ?? []).filter((track) => ids.includes(track.id) && track.quality_score < 40);
+      if (flagged.length) {
+        const reasons = new Map<string, number>();
+        for (const track of flagged) for (const note of hardReasons(track)) reasons.set(note, (reasons.get(note) ?? 0) + 1);
+        const summary = [...reasons].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([note, count]) => `  • ${note} (${count})`).join("\n");
+        const ok = window.confirm(
+          `${flagged.length} of these ${ids.length} recording${ids.length === 1 ? " was" : "s were"} rejected automatically:\n\n${summary}\n\n` +
+          "They are usually MIDI files, synthesised renderings, short excerpts or non-free licences — not real performances.\n\nPublish anyway?",
+        );
+        if (!ok) return;
+      }
+    }
     setBusy(true);
     setNotice("");
     try {
@@ -171,6 +192,9 @@ export default function TrackDesk({ preset, intro, onChange }: { preset: Preset;
                 </p>
                 <p className="mt-1 text-xs">
                   <span className={`mr-2 inline-block rounded-full px-2 py-0.5 font-semibold tabular-nums ${track.quality_score >= 70 ? "bg-accent-soft text-accent" : "bg-paper-2 text-muted"}`}>{track.quality_score}</span>
+                  {track.quality_score <= 20 && (
+                    <span className="mr-2 rounded-full bg-accent-soft px-2 py-0.5 font-semibold text-accent">Rejected automatically: {hardReasons(track).join(", ")}</span>
+                  )}
                   <span className="text-muted">{track.quality_notes.join(" · ") || "no concerns"}</span>
                   <a href={track.source_page_url} target="_blank" rel="noreferrer" className="ml-2 inline-flex items-center gap-1 text-accent hover:underline">source<ExternalLink className="size-3" /></a>
                 </p>
