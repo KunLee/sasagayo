@@ -5,7 +5,7 @@ import JsonLd from "@/components/JsonLd";
 import SearchBox from "@/components/SearchBox";
 import TrackList, { PlayAllButton } from "@/components/TrackList";
 import WorkCard from "@/components/WorkCard";
-import { composerCounts, dailyProgramme, featuredWorks, latestTracks, libraryStats, type Track, type Work } from "@/lib/catalog";
+import { composerCounts, dailyProgramme, featuredWorks, historicalTracks, latestTracks, libraryStats, type Track, type Work } from "@/lib/catalog";
 import { composerPortraits } from "@/lib/composer-info";
 import { COMPOSERS, ERAS, eraAnchor } from "@/lib/composers";
 import { SITE_URL } from "@/lib/format";
@@ -24,12 +24,13 @@ async function safely<T>(load: () => Promise<T>, fallback: T) {
 
 export default async function HomePage() {
   const { t, locale } = await getI18n();
-  const [stats, programme, latest, counts, works] = await Promise.all([
+  const [stats, programme, latest, counts, works, legends] = await Promise.all([
     safely(libraryStats, { tracks: 0, hours: 0, composers: 0 }),
     safely(() => dailyProgramme(8), [] as Track[]),
     safely(() => latestTracks(10), [] as Track[]),
     safely(composerCounts, new Map<string, { tracks: number; seconds: number }>()),
     safely(() => featuredWorks(6), [] as Work[]),
+    safely(() => historicalTracks(8), [] as Track[]),
   ]);
   const featured = [...COMPOSERS]
     .sort((a, b) => (counts.get(b.slug)?.tracks ?? 0) - (counts.get(a.slug)?.tracks ?? 0))
@@ -122,6 +123,25 @@ export default async function HomePage() {
           <h2 className="display mt-3 text-5xl">{t.home.worksTitle}</h2>
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {works.map((work) => <WorkCard key={work.work_key} work={work} locale={locale} />)}
+          </div>
+        </section>
+      )}
+
+      {legends.length > 0 && (
+        <section className="mt-24 bg-stage py-20 text-stage-ink">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+              <div>
+                <p className="eyebrow text-gold">{t.home.historyEyebrow}</p>
+                <h2 className="display mt-3 text-5xl">{t.home.historyTitle}</h2>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-stage-ink/70">{t.home.historyIntro}</p>
+              </div>
+              <PlayAllButton tracks={legends} />
+            </div>
+            {/* The track list reads the page's colour tokens; re-scope them for the dark stage. */}
+            <div className="mt-8 [--ink:var(--stage-ink)] [--ink-2:rgb(244_236_223/0.85)] [--muted:rgb(244_236_223/0.6)] [--line:rgb(244_236_223/0.12)]">
+              <TrackList tracks={legends} />
+            </div>
           </div>
         </section>
       )}

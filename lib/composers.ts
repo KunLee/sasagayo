@@ -74,7 +74,7 @@ export const COMPOSERS: Composer[] = [
   c("tchaikovsky", "Pyotr Ilyich Tchaikovsky", "Tchaikovsky", "柴可夫斯基", 1840, 1893, "Romantic", ["Tschaikowsky", "Tchaikowsky", "Chaikovsky"]),
   c("dvorak", "Antonín Dvořák", "Dvořák", "德沃夏克", 1841, 1904, "Romantic", ["Dvorak"]),
   c("grieg", "Edvard Grieg", "Grieg", "格里格", 1843, 1907, "Romantic"),
-  c("rimsky-korsakov", "Nikolai Rimsky-Korsakov", "Rimsky-Korsakov", "里姆斯基-科萨科夫", 1844, 1908, "Romantic"),
+  c("rimsky-korsakov", "Nikolai Rimsky-Korsakov", "Rimsky-Korsakov", "里姆斯基-科萨科夫", 1844, 1908, "Romantic", ["Rimsky-Korsakow", "Rimski-Korsakov"]),
   c("faure", "Gabriel Fauré", "Fauré", "福雷", 1845, 1924, "Romantic", ["Faure"]),
   c("janacek", "Leoš Janáček", "Janáček", "雅纳切克", 1854, 1928, "Modern", ["Janacek"]),
   c("elgar", "Edward Elgar", "Elgar", "埃尔加", 1857, 1934, "Romantic"),
@@ -95,7 +95,8 @@ export const COMPOSERS: Composer[] = [
   c("bartok", "Béla Bartók", "Bartók", "巴托克", 1881, 1945, "Modern", ["Bartok"]),
   c("prokofiev", "Sergei Prokofiev", "Prokofiev", "普罗科菲耶夫", 1891, 1953, "Modern"),
   c("gershwin", "George Gershwin", "Gershwin", "格什温", 1898, 1937, "Modern"),
-  c("shostakovich", "Dmitri Shostakovich", "Shostakovich", "肖斯塔科维奇", 1906, 1975, "Modern"),
+  // Not included: composers who died after 1955 (e.g. Shostakovich, d. 1975) —
+  // their music is still under copyright in Australia (life + 70 years).
 ];
 
 export const COMPOSER_BY_SLUG = new Map(COMPOSERS.map((composer) => [composer.slug, composer]));

@@ -71,6 +71,17 @@ test("pulls the performer out of 'Title – Name instrument' file names", () => 
   assert.equal(draft.performer, "John Harrison");
 });
 
+test("historical discs: year required before 1926, no bitrate penalty, renowned performers credited", () => {
+  const rachmaninoff = raw({ rawTitle: "Mazurka (in C Sharp Minor)", artist: "Sergei Rachmaninoff", mime: "audio/mpeg", sizeBytes: 900_000, durationSeconds: 200, recordedYear: 1923, trust: 5 });
+  const draft = evaluate(rachmaninoff)!;
+  assert.equal(draft.status, "published");
+  assert.equal(draft.recorded_year, 1923);
+  assert.ok(draft.quality_notes.includes("renowned performer"));
+  assert.ok(!draft.quality_notes.some((note) => note.includes("bitrate")));
+  assert.equal(evaluate(raw({ ...rachmaninoff, recordedYear: 1931 }))!.status, "rejected");
+  assert.equal(evaluate(raw({ ...rachmaninoff, recordedYear: Number.NaN }))!.status, "rejected");
+});
+
 test("manual mode sends would-be publications to review", () => {
   const good = raw({ rawTitle: "Chopin - Nocturne No. 8 in D-flat major, Op. 27 No. 2 (Frank Levy).flac", mime: "audio/flac" });
   assert.equal(evaluate(good, { mode: "manual", publishAt: 60, reviewAt: 40 })!.status, "review");

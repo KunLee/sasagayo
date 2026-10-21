@@ -31,12 +31,14 @@ async function count(filter: string) {
 
 async function overview() {
   const since = new Date(Date.now() - 86_400_000).toISOString();
-  const [totals, incoming, runs, feeds, policy] = await Promise.all([
+  const [totals, incoming, runs, feeds, policy, mirrored, historical] = await Promise.all([
     Promise.all(STATUSES.map(async (status) => [status, await count(`status=eq.${status}`)] as const)),
     Promise.all(STATUSES.map(async (status) => [status, await count(`status=eq.${status}&discovered_at=gte.${since}`)] as const)),
     serviceJson("discovery_runs?select=*&order=started_at.desc&limit=14"),
     serviceJson<{ last_crawled_at: string | null }[]>("discovery_state?select=last_crawled_at"),
     loadPolicy(),
+    count("status=eq.published&object_key=not.is.null"),
+    count("status=eq.published&recorded_year=not.is.null"),
   ]);
   return {
     totals: Object.fromEntries(totals),
@@ -44,6 +46,8 @@ async function overview() {
     runs,
     feeds: { crawled: feeds.filter((feed) => feed.last_crawled_at).length, known: feeds.length },
     policy,
+    mirrored,
+    historical,
   };
 }
 

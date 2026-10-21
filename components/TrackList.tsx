@@ -64,6 +64,7 @@ export default function TrackList({ tracks, showComposer = true, startNumber = 1
                 )}
                 {showComposer && track.performer && " · "}
                 {track.performer}
+                {track.recorded_year && <span className="ml-1.5 rounded-full border border-line px-1.5 py-px text-[10px] tabular-nums" title={t.track.historical(track.recorded_year)}>{track.recorded_year}</span>}
                 <span className="sm:hidden"> · {formatDuration(track.duration_seconds)}</span>
               </p>
             </div>

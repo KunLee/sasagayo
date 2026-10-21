@@ -19,6 +19,7 @@ export type Track = {
   description: string;
   quality_score: number;
   published_at: string | null;
+  recorded_year: number | null;
   work_key: string | null;
   work_title: string | null;
   movement_number: number | null;
@@ -37,7 +38,7 @@ export type Work = {
   first_track_id: string;
 };
 
-const FIELDS = "id,title,composer_slug,composer_name,performer,duration_seconds,stream_url,original_url,source,source_page_url,license_name,license_url,attribution,description,quality_score,published_at,work_key,work_title,movement_number,movement_title";
+const FIELDS = "id,title,composer_slug,composer_name,performer,duration_seconds,stream_url,original_url,source,source_page_url,license_name,license_url,attribution,description,quality_score,published_at,recorded_year,work_key,work_title,movement_number,movement_title";
 const PUBLISHED = "status=eq.published";
 
 export async function searchTracks(query: string, options: { composer?: string; page?: number; pageSize?: number } = {}) {
@@ -62,8 +63,19 @@ export async function composerTracks(slug: string, page = 1, pageSize = 40) {
   return { tracks: rows, total: total ?? rows.length };
 }
 
+/** Pre-1926 recordings for the "Legends of the 78 era" shelf: the best, one per composer. */
+export async function historicalTracks(limit = 8) {
+  const { rows } = await publicGet<Track[]>(
+    `tracks?select=${FIELDS}&${PUBLISHED}&recorded_year=not.is.null&order=quality_score.desc,play_count.desc&limit=200`,
+    { revalidate: 3600 },
+  );
+  const seen = new Set<string>();
+  return rows.filter((track) => !seen.has(track.composer_slug) && seen.add(track.composer_slug)).slice(0, limit);
+}
+
 export async function latestTracks(limit = 12) {
-  const { rows } = await publicGet<Track[]>(`tracks?select=${FIELDS}&${PUBLISHED}&order=published_at.desc.nullslast,quality_score.desc&limit=${limit}`);
+  // Historical sides have their own shelf; a day's 78 rpm haul would otherwise fill this one.
+  const { rows } = await publicGet<Track[]>(`tracks?select=${FIELDS}&${PUBLISHED}&recorded_year=is.null&order=published_at.desc.nullslast,quality_score.desc&limit=${limit}`);
   return rows;
 }
 

@@ -24,6 +24,8 @@ export type RawRecording = {
   composer: Composer | null;
   /** Bonus for feeds known to carry real performances (e.g. Musopen). */
   trust: number;
+  /** Year of recording, set by historical feeds; must be before 1926. */
+  recordedYear?: number;
 };
 
 export type TrackDraft = {
@@ -48,6 +50,7 @@ export type TrackDraft = {
   dedupe_key: string;
   status: TrackStatus;
   search_text: string;
+  recorded_year: number | null;
   work_key: string | null;
   work_title: string | null;
   movement_number: number | null;
@@ -79,6 +82,8 @@ const HARD_REJECT: [RegExp, string][] = [
 ];
 
 const MUSICAL_FORM = /\b(op\.?|opus|bwv|k\.|kv|hob|d\.|hwv|rv|wwv|b\.|no\.|nr\.|act|mass|messe|aria|suite|trio|lied|lieder|air|song|dance|danse|tanz|rondo|gigue|polka|tango|hymn|psalm|motet|opera|oratorio|requiem|gloria|kyrie|credo|sanctus|te deum|ave maria|stabat mater|magnificat|vespers|allegro|andante|adagio|largo|presto|lento|vivace|moderato|grave)\b|\b(symphon|sinfoni|sonat|concert|prelud|pr\u00e9lud|fugu|etude|\u00e9tude|mazurk|polonais|waltz|valse|walzer|ballad|scherz|impromptu|rhapsod|overtur|ouvertur|quartet|quartett|quintet|variation|serenad|march|marsch|minuet|menuet|gymnop|arabesque|barcarol|fantasi|toccata|partita|cantata|kantate|chorale|choral|madrigal|movement|album|feuille|pi[e\u00e8]ce|st\u00fcck|stuck|romanc|eleg|berceuse|lullab|capric|intermezz|humoresk|humoresque|bagatell|chaconn|pavan|sarabande|bourr|gavott|tone poem|lament|habanera|r[e\u00ea]verie|consolation|liebestr|nocturn|invention|canon|passacag|divertiment|concertino|ricercar|sinfonia|duet|duo|allegr|andant|adagi|prest|largh|lent|vivac|moderat|grav|maestos|cantabil|sostenut|tempo|menuett|zauberfl|figaro|giovanni|traviata|carmen|tosca|boh[e\u00e8]me|nutcracker|swan lake|four seasons|seasons)/;
+/** Celebrated performers of the acoustic era (matched against accent-folded names). */
+const RENOWNED = /\b(caruso|rachmaninoff|rachmaninov|kreisler|heifetz|casals|melba|paderewski|elman|cortot|busoni|elgar|mccormack|galli-curci|schumann-heink|chaliapin|hofmann|zimbalist|alma gluck|farrar|ponselle|destinn|tetrazzini|patti|sembrich|battistini|pachmann|godowsky|grainger|harold bauer|thibaud|ysaye|kubelik|stokowski|philadelphia orchestra|boston symphony|cortot|gigli|scotti|journet|homer)\b/;
 const ENSEMBLE = /\b(orchestra|orchester|orchestre|orkest|symphony|sinfonie|philharmoni|quartet|quartett|quatuor|ensemble|choir|chorus|chor|trio|band|consort|camerata|sinfonietta|musopen)\b/;
 const TRUSTED_CATEGORY = /^Category:(Musopen|European Archive|Featured sounds|Quality sounds|Sounds of the United States Marine Band|United States Marine Band|Audio files from the White House|hr-Sinfonieorchester)/i;
 const JUNK_PERSON = /https?:|www\.|uploader|\buploads\b|\brecords\b|steinway|bechstein|b[oö]sendorfer|yamaha|\bgrand\b|^by |youtube|flickr|unknown|email|collection|repository|ibiblio|garageband|recording|archive|composer:|^\[\d+\]$|no machine-readable|fotograf|zeichner|uploaded|user:|own work|original uploader|see below|created by|anonymous|wikimedia|wikipedia/i;
@@ -149,7 +154,15 @@ export function cleanPerson(value: string, composer: Composer | null): string | 
 }
 
 /** Splits a raw file title into a clean work title and (if present) a performer. */
-export function parseTitle(raw: string, composer: Composer | null) {
+/** "(in C Sharp Minor)", "(E-Dur)": a key in parentheses is part of the title, not a performer. */
+const KEY = /\b(major|minor|dur|moll|flat|sharp|majeur|mineur)\b/i;
+
+/**
+ * Splits a raw file title into a clean work title and (if present) a performer.
+ * `findPerformer: false` keeps the title whole, for sources whose credits are
+ * already reliable (78 rpm titles often end in translations like "(Spirit So Fair)").
+ */
+export function parseTitle(raw: string, composer: Composer | null, { findPerformer = true } = {}) {
   let title = clean(raw)
     .replace(/^File:/i, "")
     .replace(/%\s?2C/gi, ",").replace(/%\s?27/g, "'")
@@ -165,6 +178,11 @@ export function parseTitle(raw: string, composer: Composer | null) {
     .trim();
   let performer: string | null = null;
 
+  if (!findPerformer) {
+    title = stripComposerPrefix(title, composer).replace(/\s*[-–—:,]\s*$/, "").trim();
+    return { title: title || clean(raw), performer: null };
+  }
+
   const performedBy = title.match(/[,\-–]?\s*\(?(?:piano )?(?:performed|played|performance) by ([^)]+)\)?$/i);
   if (performedBy) {
     performer = performedBy[1].trim();
@@ -176,7 +194,7 @@ export function parseTitle(raw: string, composer: Composer | null) {
     title = title.slice(0, onInstrument.index).trim();
   }
   const trailing = title.match(/\s*\(([^()]{3,80})\)$/);
-  if (!performer && trailing && !MUSICAL_FORM.test(fold(trailing[1])) && !/^\d{4}$/.test(trailing[1].trim())) {
+  if (!performer && trailing && !MUSICAL_FORM.test(fold(trailing[1])) && !KEY.test(trailing[1]) && !/^\d{4}$/.test(trailing[1].trim())) {
     performer = trailing[1].replace(/,\s*\d{4}$/, "").trim();
     title = title.slice(0, trailing.index).trim();
   }
@@ -223,8 +241,11 @@ export function evaluate(raw: RawRecording, policy: PublishPolicy = DEFAULT_POLI
   let hardReject = false;
 
   const license = normalizeLicense(raw.licenseName, raw.licenseUrl);
-  const { title, performer: titlePerformer } = parseTitle(raw.rawTitle, composer);
-  const performer = (titlePerformer && cleanPerson(titlePerformer, composer)) ?? cleanPerson(raw.artist, composer) ?? cleanPerson(raw.credit, composer);
+  const { title, performer: titlePerformer } = parseTitle(raw.rawTitle, composer, { findPerformer: raw.recordedYear === undefined });
+  // Historical feeds pass curated credits; a composer at the piano ("Sergei Rachmaninoff") must stay.
+  const performer = raw.recordedYear !== undefined
+    ? (clean(raw.artist).slice(0, 200) || null)
+    : (titlePerformer && cleanPerson(titlePerformer, composer)) ?? cleanPerson(raw.artist, composer) ?? cleanPerson(raw.credit, composer);
   const description = clean(raw.description).slice(0, 2000);
   const haystack = fold([raw.rawTitle, description, raw.artist, raw.credit, ...raw.categories].join(" "));
 
@@ -244,7 +265,8 @@ export function evaluate(raw: RawRecording, policy: PublishPolicy = DEFAULT_POLI
   else if (seconds >= 480) { score += 12; notes.push("full-length work"); }
   else if (seconds >= 180) score += 8;
 
-  if (raw.sizeBytes && seconds > 0 && /mpeg|ogg|mp3|opus|webm/.test(raw.mime)) {
+  // Early discs are narrow-band by nature; bitrate says nothing about their worth.
+  if (!raw.recordedYear && raw.sizeBytes && seconds > 0 && /mpeg|ogg|mp3|opus|webm/.test(raw.mime)) {
     const kbps = (raw.sizeBytes * 8) / seconds / 1000;
     if (kbps < 48) { score -= 20; notes.push(`low bitrate (${Math.round(kbps)} kbps)`); }
     else if (kbps < 80) { score -= 6; notes.push(`modest bitrate (${Math.round(kbps)} kbps)`); }
@@ -255,7 +277,14 @@ export function evaluate(raw: RawRecording, policy: PublishPolicy = DEFAULT_POLI
   if (MUSICAL_FORM.test(fold(title))) score += 10;
   else notes.push("title does not name a recognisable work");
   if (/excerpt|auszug|extrait|fragment/.test(haystack)) { score -= 12; notes.push("excerpt"); }
-  if (/\b(19[0-3]\d|18\d\d)\b.*(record|wax|cylinder|78)|edison|gramophone|victor talking/.test(haystack)) notes.push("historical recording");
+  if (raw.recordedYear !== undefined) {
+    // Public domain everywhere we serve only if published before 1926.
+    if (!Number.isInteger(raw.recordedYear) || raw.recordedYear >= 1926) { hardReject = true; notes.push(`recorded ${raw.recordedYear || "in an unknown year"}: not public domain everywhere`); }
+    else notes.push(`historical recording (${raw.recordedYear})`);
+    if (performer && RENOWNED.test(fold(performer))) { score += 10; notes.push("renowned performer"); }
+  } else if (/\b(19[0-3]\d|18\d\d)\b.*(record|wax|cylinder|78)|edison|gramophone|victor talking/.test(haystack)) {
+    notes.push("historical recording");
+  }
   if (raw.categories.some((category) => TRUSTED_CATEGORY.test(category))) { score += 15; notes.push("trusted collection"); }
   if (license.name === "CC0" || license.name === "Public domain") score += 3;
   score += raw.trust;
@@ -290,9 +319,13 @@ export function evaluate(raw: RawRecording, policy: PublishPolicy = DEFAULT_POLI
     attribution: attribution.slice(0, 1000),
     quality_score: score,
     quality_notes: notes,
-    dedupe_key: dedupeKey(composer.slug, title, performer),
+    // 78s were reissued under varying credits; one lead performer + year is one recording.
+    dedupe_key: raw.recordedYear
+      ? dedupeKey(composer.slug, title, `${(performer ?? "").split(/;|,| and /i)[0]}${raw.recordedYear}`)
+      : dedupeKey(composer.slug, title, performer),
     status,
-    search_text: buildSearchText(title, composer, performer, description),
+    search_text: buildSearchText(title, composer, performer, description) + (raw.recordedYear ? ` historical 78 rpm ${raw.recordedYear} 历史录音` : ""),
+    recorded_year: raw.recordedYear ?? null,
     ...workFields(composer.slug, title, performer),
   };
 }

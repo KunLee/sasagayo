@@ -81,6 +81,12 @@ export default async function TrackPage({ params, searchParams }: Props) {
             </p>
           )}
           <h1 className="display mt-4 text-[clamp(2.5rem,6vw,4.75rem)]">{track.title}</h1>
+          {track.recorded_year && (
+            <p className="mt-4 max-w-2xl text-sm text-muted">
+              <span className="mr-2 inline-block rounded-full bg-gold/20 px-2.5 py-0.5 text-xs font-semibold text-ink">{t.track.historical(track.recorded_year)}</span>
+              {t.track.historicalNote}
+            </p>
+          )}
           <p className="mt-4 text-lg text-ink-2">
             {track.performer ? <>{t.track.performedBy} <span className="font-medium">{track.performer}</span></> : <span className="text-muted">{t.track.notCredited}</span>}
             <span className="text-muted"> · {formatDuration(track.duration_seconds)}</span>
@@ -97,7 +103,7 @@ export default async function TrackPage({ params, searchParams }: Props) {
           <p className="flex items-center gap-2 font-semibold"><ShieldCheck className="size-4 text-accent" />{t.track.freeToShare}</p>
           <dl className="mt-4 grid gap-3">
             <div><dt className="text-xs text-muted">{t.track.licence}</dt><dd>{track.license_url ? <a href={track.license_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{track.license_name}</a> : track.license_name}</dd></div>
-            <div><dt className="text-xs text-muted">{t.track.credit}</dt><dd className="leading-6">{track.attribution}</dd></div>
+            <div><dt className="text-xs text-muted">{t.track.credit}</dt><dd className="leading-6 [overflow-wrap:anywhere]">{track.attribution}</dd></div>
             <div><dt className="text-xs text-muted">{t.track.source}</dt><dd><a href={track.source_page_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline">{sourceLabel(track.source)}<ExternalLink className="size-3" /></a></dd></div>
           </dl>
           <p className="mt-5 border-t border-line pt-4 text-xs leading-5 text-muted">{freeText}</p>

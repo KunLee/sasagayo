@@ -7,9 +7,10 @@ export type PlayerTrack = {
   performer: string | null;
   duration_seconds: number;
   stream_url: string;
+  recorded_year?: number | null;
 };
 
 export function toPlayerTrack<T extends PlayerTrack>(track: T): PlayerTrack {
-  const { id, title, composer_slug, composer_name, performer, duration_seconds, stream_url } = track;
-  return { id, title, composer_slug, composer_name, performer, duration_seconds, stream_url };
+  const { id, title, composer_slug, composer_name, performer, duration_seconds, stream_url, recorded_year } = track;
+  return { id, title, composer_slug, composer_name, performer, duration_seconds, stream_url, recorded_year: recorded_year ?? null };
 }

@@ -69,6 +69,7 @@ export default function AdminClient() {
               Publishing is <strong className="text-ink-2">{overview.policy.mode === "auto" ? `automatic at ${overview.policy.publishAt}+` : "manual"}</strong>
               {" · "}{overview.feeds.crawled}/{overview.feeds.known || "—"} feeds visited
               {lastRun ? ` · last run ${new Date(lastRun.started_at).toLocaleString()}` : ""}
+              {` · ${overview.mirrored.toLocaleString("en")} of ${overview.totals.published.toLocaleString("en")} in our storage · ${overview.historical.toLocaleString("en")} historical`}
             </p>
           )}
         </div>

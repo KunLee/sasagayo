@@ -38,6 +38,11 @@ export function parseWork(title: string): WorkParts | null {
     ?? text.match(/^(.{3,}?)[\s,(–-]+(\d{1,2})(?:st|nd|rd|th)\s+(?:mvt|movement)\b[\s.:,)–-]*(.*)$/i);
   if (match) return clean(match[1], Number(match[2]), match[3]);
 
+  // 78 rpm sides: "Sonata in B flat minor, Op. 35 – Part 2", "Ballade (Pt. 1)", "Concerto - 2nd part", "Side 3"
+  match = text.match(/^(.{3,}?)[\s,:(–-]+(?:part|pt\.?|side|teil|partie)\s*(\d{1,2})\b\)?[\s.:,)–-]*(.*)$/i)
+    ?? text.match(/^(.{3,}?)[\s,:(–-]+(\d{1,2})(?:st|nd|rd|th)\s+(?:part|side)\b\)?[\s.:,)–-]*(.*)$/i);
+  if (match) return clean(match[1], Number(match[2]), match[3]);
+
   // "Symphony No.18 in F Major K. 130 I. Allegro" — numeral without a separator, after a catalogue number.
   match = text.match(/^(.*?\d[\w.]*)\s+([IVX]{1,5})\.\s+(\p{Lu}.+)$/u);
   if (match && CATALOGUE.test(match[1])) return clean(match[1], romanToInt(match[2]), match[3]);

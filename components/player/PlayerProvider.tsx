@@ -134,7 +134,8 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     pendingSeek.current = offset > 0 ? offset : null;
     counted.current = null;
-    element.src = track.stream_url;
+    // Our own R2 copy when we have one, otherwise the archive (resolved by /api/play).
+    element.src = `/api/play/${track.id}`;
     element.play().catch(() => {
       // Autoplay can be refused (e.g. a shared link opened without a click); the bar shows Play.
       setLoading(false);
@@ -266,7 +267,8 @@ export default function PlayerProvider({ children }: { children: ReactNode }) {
             const resumeAt = element.currentTime;
             window.setTimeout(() => {
               pendingSeek.current = resumeAt > 0 ? resumeAt : null;
-              element.src = current.stream_url;
+              // Retry straight from the archive in case our copy is the problem.
+              element.src = `/api/play/${current.id}?source=1`;
               void element.play().catch(() => undefined);
             }, 1500);
             return;

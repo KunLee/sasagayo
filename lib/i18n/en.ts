@@ -90,6 +90,9 @@ export const en = {
     composersEyebrow: "The composers",
     composersTitle: "Who would you like to hear?",
     allComposers: "All composers",
+    historyEyebrow: "Legends of the 78 era",
+    historyTitle: "Before 1926",
+    historyIntro: "Rachmaninoff at the piano, Caruso and Melba in full voice — recordings old enough to belong to everyone. Expect the crackle of shellac.",
     worksEyebrow: "Complete works",
     worksTitle: "Every movement, in order",
     justAdded: "Just added",
@@ -138,6 +141,8 @@ export const en = {
     metaDescription: (work: string, composer: string, count: number) => `${work} by ${composer}: ${count} movements, free to listen and share.`,
   },
   track: {
+    historical: (year: number) => `Historical recording · ${year}`,
+    historicalNote: "An acoustic or early electrical recording, digitised from a 78 rpm disc. Surface noise is part of the original.",
     performedBy: "Performed by",
     notCredited: "Performer not credited",
     play: "Play",

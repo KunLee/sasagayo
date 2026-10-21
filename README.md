@@ -28,8 +28,15 @@ Vercel Cron (daily 19:00 UTC)
   remixes, library arrangements, stems, files under 60 s, and NC/ND licences;
   rewards credited performers, full-length works, recognisable work titles,
   curated collections (Musopen, European Archive, Featured sounds).
-* **Playback** streams directly from the archive (Commons' MP3 transcode, so it
-  works on iPhone too). Nothing is copied to R2.
+* **Playback** goes through `/api/play/<id>`: our own copy in Cloudflare R2 when
+  we have one (signed URL, or `R2_PUBLIC_BASE` if a public domain is attached to
+  the bucket), otherwise the archive's MP3. The daily cron spends leftover time
+  copying published recordings into R2, most-played first;
+  `npm run mirror:backlog` works through the backlog on the deployed server.
+* **Historical recordings** (`historical:<composer>` feeds): Internet Archive's
+  Great 78 Project sides recorded **before 1926**, which are public domain in the
+  US, Australia, China and the EU. A known year is required; sides become works
+  ("Part 1/2"), reissue duplicates collapse, dance-band versions are skipped.
 * **Search** (`lib/catalog.ts`, `lib/search-tokens.ts`) matches every word against
   an accent-folded `search_text` (trigram-indexed). Chinese queries are segmented
   — `肖邦 夜曲` finds Chopin nocturnes.

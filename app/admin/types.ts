@@ -20,6 +20,9 @@ export type Overview = {
   runs: Run[];
   feeds: { crawled: number; known: number };
   policy: Policy;
+  /** Published recordings with a copy in our R2 bucket. */
+  mirrored: number;
+  historical: number;
 };
 
 export async function adminPost<T = Record<string, unknown>>(body: Record<string, unknown>): Promise<T> {

@@ -92,6 +92,9 @@ export const zh: Dictionary = {
     composersEyebrow: "作曲家",
     composersTitle: "今天想听谁的作品？",
     allComposers: "全部作曲家",
+    historyEyebrow: "78 转唱片时代的传奇",
+    historyTitle: "1926 年以前",
+    historyIntro: "拉赫玛尼诺夫亲自演奏，卡鲁索与梅尔巴的歌声——这些录音年代足够久远，已属于每一个人。请欣赏虫胶唱片特有的沙沙声。",
     worksEyebrow: "完整作品",
     worksTitle: "全部乐章，按顺序聆听",
     justAdded: "最新收录",
@@ -140,6 +143,8 @@ export const zh: Dictionary = {
     metaDescription: (work: string, composer: string, count: number) => `${composer}《${work}》：共 ${count} 个乐章，可免费收听和分享。`,
   },
   track: {
+    historical: (year: number) => `历史录音 · ${year}`,
+    historicalNote: "这是从 78 转唱片数字化的早期录音，唱片表面的杂音是原始录音的一部分。",
     performedBy: "演奏：",
     notCredited: "未注明演奏者",
     play: "播放",

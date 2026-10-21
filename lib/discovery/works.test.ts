@@ -12,6 +12,10 @@ test("splits works and movements from real catalogue titles", () => {
     ["Chopin Sonata no 2 1st movement", "Chopin Sonata no 2", 1, ""],
     ["Symphony No.18 in F Major K. 130 I. Allegro", "Symphony No.18 in F Major K. 130", 1, "Allegro"],
     ["Klaviersonate Nr. 31 As-Dur op. 110 – III. Adagio, ma non troppo", "Klaviersonate Nr. 31 As-Dur op. 110", 3, "Adagio, ma non troppo"],
+    // 78 rpm sides
+    ["Sonata in B flat minor, Op. 35 – Part 2", "Sonata in B flat minor, Op. 35", 2, ""],
+    ["Ballade in G minor (Pt. 1)", "Ballade in G minor", 1, ""],
+    ["Hungarian Rhapsody No. 2 - 2nd part", "Hungarian Rhapsody No. 2", 2, ""],
   ];
   for (const [title, work, number, movement] of cases) {
     assert.deepEqual(parseWork(title), { workTitle: work, movementNumber: number, movementTitle: movement }, title);
