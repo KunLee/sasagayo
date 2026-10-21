@@ -11,10 +11,18 @@ export function r2() {
   const objectUrl = (key: string) => `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${key.split("/").map(encodeURIComponent).join("/")}`;
   return {
     async put(key: string, body: ArrayBuffer, contentType: string) {
-      const response = await client.fetch(objectUrl(key), {
+      const bytes = new Uint8Array(body);
+      // Sign first, then send with an explicit length: some runtimes (Vercel's)
+      // otherwise stream the body chunked, which R2 rejects with 411.
+      const signed = await client.sign(objectUrl(key), {
         method: "PUT",
-        body,
-        headers: { "Content-Type": contentType, "Cache-Control": "public, max-age=31536000, immutable" },
+        body: bytes,
+        headers: { "Content-Type": contentType, "Content-Length": String(bytes.byteLength), "Cache-Control": "public, max-age=31536000, immutable" },
+      });
+      const response = await fetch(signed.url, {
+        method: "PUT",
+        headers: signed.headers,
+        body: bytes,
         signal: AbortSignal.timeout(90_000),
       });
       if (!response.ok) throw new Error(`R2 upload failed with ${response.status}: ${(await response.text()).slice(0, 200)}`);
